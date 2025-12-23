@@ -1,0 +1,7 @@
+{
+  "name": "Global Numismatic Archive",
+  "description": "A comprehensive database for banknotes from around the world, featuring advanced AI-powered image editing for detail enhancement and restoration.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
