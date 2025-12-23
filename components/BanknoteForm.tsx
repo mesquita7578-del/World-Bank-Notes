@@ -146,6 +146,7 @@ const BanknoteForm: React.FC<BanknoteFormProps> = ({ initialData, onSubmit, onCa
             <option value="F">F (BC)</option>
             <option value="VG">VG (Muito Gasta)</option>
             <option value="G">G (Gasta/Pobre)</option>
+            <option value="SPECIMEN">SPECIMEN</option>
           </select>
         </div>
 

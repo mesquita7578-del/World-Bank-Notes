@@ -263,6 +263,7 @@ const App: React.FC = () => {
                   <option value="XF">XF (Soberba)</option>
                   <option value="VF">VF (MBC)</option>
                   <option value="F">F (BC)</option>
+                  <option value="SPECIMEN">SPECIMEN</option>
                 </select>
               </div>
             </div>
