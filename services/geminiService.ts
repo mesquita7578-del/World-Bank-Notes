@@ -9,7 +9,7 @@ export class GeminiService {
     this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
   }
 
-  // Uses gemini-3-flash-preview for structured data extraction from images
+  // Extração básica de dados
   async extractBanknoteData(base64Image: string): Promise<Partial<Banknote> | null> {
     try {
       const cleanBase64 = base64Image.split(',')[1] || base64Image;
@@ -19,15 +19,8 @@ export class GeminiService {
         model: 'gemini-3-flash-preview',
         contents: {
           parts: [
-            {
-              inlineData: {
-                data: cleanBase64,
-                mimeType: mimeType,
-              },
-            },
-            {
-              text: "Analise esta cédula (banknote) e extraia todos os detalhes técnicos possíveis. Retorne os dados estritamente em formato JSON seguindo as propriedades especificadas.",
-            },
+            { inlineData: { data: cleanBase64, mimeType } },
+            { text: "Analise esta cédula e extraia os detalhes técnicos em JSON." },
           ],
         },
         config: {
@@ -41,13 +34,8 @@ export class GeminiService {
               currency: { type: Type.STRING },
               denomination: { type: Type.STRING },
               issueDate: { type: Type.STRING },
-              type: { type: Type.STRING },
               material: { type: Type.STRING },
               size: { type: Type.STRING },
-              comments: { type: Type.STRING },
-              itemsInSet: { type: Type.STRING },
-              setItemNumber: { type: Type.STRING },
-              setDetails: { type: Type.STRING },
             },
           },
         },
@@ -56,62 +44,74 @@ export class GeminiService {
       if (!response.text) return null;
       return JSON.parse(response.text.trim());
     } catch (error) {
-      console.error("Gemini Extraction Error:", error);
+      console.error("Extraction Error:", error);
       throw error;
     }
   }
 
-  // Uses gemini-3-flash-preview with googleSearch tool for historical context
-  async getHistoricalContext(note: Banknote): Promise<{ text: string, sources: any[] }> {
+  // NOVO: Estimativa de valor comercial via IA com Busca no Google
+  async estimateMarketValue(note: Partial<Banknote>): Promise<string | null> {
     try {
-      const prompt = `Forneça um contexto histórico detalhado, raridade e curiosidades sobre a cédula: ${note.denomination} ${note.currency} de ${note.country}, emitida em ${note.issueDate}. Use o Pick ID ${note.pickId} se disponível para maior precisão.`;
+      // Usamos gemini-3-pro-preview para tarefas complexas de raciocínio e busca
+      const prompt = `Qual o valor de mercado aproximado em Euros (€) para esta cédula: 
+      País: ${note.country}
+      Denominação: ${note.denomination} ${note.currency}
+      Ano/Emissão: ${note.issueDate}
+      Pick ID: ${note.pickId}
+      Estado de Conservação: ${note.grade} (MUITO IMPORTANTE PARA O PREÇO)
       
+      Retorne apenas o valor numérico (ex: 45.00 ou 1200.50). Se for um intervalo, retorne a média. 
+      Se não encontrar, retorne nulo.`;
+
       const response = await this.ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-3-pro-preview',
         contents: prompt,
         config: {
           tools: [{ googleSearch: {} }]
         }
       });
 
-      // Extract URLs from groundingChunks as required by guidelines
-      return {
-        text: response.text || "Informação não disponível.",
-        sources: response.candidates?.[0]?.groundingMetadata?.groundingChunks || []
-      };
+      const text = response.text?.trim() || "";
+      const match = text.match(/\d+(\.\d+)?/);
+      return match ? match[0] : null;
     } catch (error) {
-      console.error("Gemini Search Error:", error);
-      return { text: "Erro ao pesquisar informações na web.", sources: [] };
+      console.error("Market Valuation Error:", error);
+      return null;
     }
   }
 
-  // Uses gemini-2.5-flash-image for image restoration/editing
-  async editImage(base64Image: string, prompt: string): Promise<string | null> {
+  async getHistoricalContext(note: Banknote): Promise<{ text: string, sources: any[] }> {
     try {
-      const cleanBase64 = base64Image.split(',')[1] || base64Image;
-      const mimeType = base64Image.match(/data:(.*?);/)?.[1] || 'image/png';
-
+      const prompt = `Fatos históricos e raridade: ${note.denomination} ${note.currency} - ${note.country} (${note.pickId}).`;
       const response = await this.ai.models.generateContent({
-        model: 'gemini-2.5-flash-image',
-        contents: {
-          parts: [
-            { inlineData: { data: cleanBase64, mimeType } },
-            { text: `Restaurar imagem numismática: ${prompt}` },
-          ],
-        },
+        model: 'gemini-3-flash-preview',
+        contents: prompt,
+        config: { tools: [{ googleSearch: {} }] }
       });
-
-      if (response.candidates?.[0]?.content?.parts) {
-        for (const part of response.candidates[0].content.parts) {
-          // Find and return the processed image part
-          if (part.inlineData) return `data:image/png;base64,${part.inlineData.data}`;
-        }
-      }
-      return null;
+      return {
+        text: response.text || "Sem dados históricos.",
+        sources: response.candidates?.[0]?.groundingMetadata?.groundingChunks || []
+      };
     } catch (error) {
-      console.error("Gemini Image Edit Error:", error);
-      throw error;
+      return { text: "Erro na pesquisa.", sources: [] };
     }
+  }
+
+  async editImage(base64Image: string, prompt: string): Promise<string | null> {
+    const cleanBase64 = base64Image.split(',')[1] || base64Image;
+    const response = await this.ai.models.generateContent({
+      model: 'gemini-2.5-flash-image',
+      contents: {
+        parts: [
+          { inlineData: { data: cleanBase64, mimeType: 'image/png' } },
+          { text: prompt },
+        ],
+      },
+    });
+    for (const part of response.candidates?.[0]?.content?.parts || []) {
+      if (part.inlineData) return `data:image/png;base64,${part.inlineData.data}`;
+    }
+    return null;
   }
 }
 
