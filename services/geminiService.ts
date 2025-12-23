@@ -11,22 +11,23 @@ export class GeminiService {
 
   /**
    * SUPER EXTRAÇÃO: Identifica a cédula pela imagem e busca valor de mercado em tempo real.
+   * Inclui o Banco Central do Brasil como fonte oficial para notas brasileiras.
    */
   async extractBanknoteData(base64Image: string): Promise<Partial<Banknote> | null> {
     try {
       const cleanBase64 = base64Image.split(',')[1] || base64Image;
       const mimeType = base64Image.match(/data:(.*?);/)?.[1] || 'image/png';
 
-      // Usamos o Gemini 3 Pro para permitir o uso de Google Search durante a extração
       const response = await this.ai.models.generateContent({
         model: 'gemini-3-pro-preview',
         contents: {
           parts: [
             { inlineData: { data: cleanBase64, mimeType } },
             { text: `Analise profundamente esta imagem de cédula. 
-              1. Identifique todos os detalhes técnicos (Pick ID, País, Autoridade, Moeda, Valor, Ano, Material, Tamanho).
-              2. Use o Google Search para encontrar o valor comercial médio atual em Euros (€) para este item no mercado numismático.
-              3. Identifique se ela faz parte de uma série/conjunto específico.
+              1. Identifique os detalhes técnicos (Pick ID, País, Autoridade, Moeda, Valor, Ano, Material, Tamanho).
+              2. Se a cédula for do BRASIL, use obrigatoriamente como referência técnica o site oficial: https://www.bcb.gov.br/cedulasemoedas/cedulasemitidas para validar série e família.
+              3. Use o Google Search para encontrar o valor comercial médio atual em Euros (€) em sites de leilões e numismática.
+              4. Verifique se faz parte de uma série/conjunto específico.
               Retorne os dados estritamente no formato JSON definido.` 
             },
           ],
@@ -48,7 +49,7 @@ export class GeminiService {
               estimatedValue: { type: Type.STRING, description: "Valor de mercado estimado em EUR (apenas números)" },
               type: { type: Type.STRING, description: "Circulação, Comemorativa, Espécime, etc." },
               setDetails: { type: Type.STRING, description: "Breve descrição da série ou conjunto se aplicável" },
-              comments: { type: Type.STRING, description: "Uma breve curiosidade histórica ou detalhe de raridade encontrado na busca" }
+              comments: { type: Type.STRING, description: "Curiosidade histórica, detalhes de segurança do BCB ou raridade encontrada" }
             },
           },
         },
@@ -66,6 +67,7 @@ export class GeminiService {
     try {
       const prompt = `Qual o valor de mercado aproximado em Euros (€) para esta cédula: 
       País: ${note.country}, Denominação: ${note.denomination} ${note.currency}, Ano: ${note.issueDate}, Pick ID: ${note.pickId}, Conservação: ${note.grade}.
+      Para notas do Brasil, considere referências de catálogos como Bentes ou Vieira.
       Retorne apenas o valor numérico médio.`;
 
       const response = await this.ai.models.generateContent({
@@ -84,7 +86,9 @@ export class GeminiService {
 
   async getHistoricalContext(note: Banknote): Promise<{ text: string, sources: any[] }> {
     try {
-      const prompt = `Fatos históricos e raridade: ${note.denomination} ${note.currency} - ${note.country} (${note.pickId}).`;
+      const prompt = `Fatos históricos, raridade e contexto de emissão: ${note.denomination} ${note.currency} - ${note.country} (${note.pickId}). 
+      Se for do Brasil, inclua informações sobre a família do Real ou Cruzado/Cruzeiro usando referências do site bcb.gov.br.`;
+      
       const response = await this.ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: prompt,
