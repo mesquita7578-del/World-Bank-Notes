@@ -58,6 +58,10 @@ const App: React.FC = () => {
     setEditingId(null);
   };
 
+  const handleUpdateNote = (updatedNote: Banknote) => {
+    setNotes(prev => prev.map(n => n.id === updatedNote.id ? updatedNote : n));
+  };
+
   const handleDelete = (id: string) => {
     if (window.confirm('Tem certeza que deseja excluir este registro permanentemente?')) {
       setNotes(prev => prev.filter(n => n.id !== id));
@@ -301,6 +305,7 @@ const App: React.FC = () => {
         <ImageGalleryModal 
           note={galleryNote} 
           onClose={() => setViewGalleryNoteId(null)} 
+          onUpdateNote={handleUpdateNote}
         />
       )}
 
