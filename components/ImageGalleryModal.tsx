@@ -11,16 +11,13 @@ interface ImageGalleryModalProps {
 
 const ImageGalleryModal: React.FC<ImageGalleryModalProps> = ({ note, onClose, onUpdateNote }) => {
   const imageEntries = Object.entries(note.images).filter(([_, value]) => !!value);
-  const [activeIndex, setActiveIndex] = useState(0);
+  const [activeIndex, setActiveIndex] = useState<number | null>(null); // null means grid view
   const [zoom, setZoom] = useState(1);
   const [isRotating, setIsRotating] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [historyInfo, setHistoryInfo] = useState<{ text: string, sources: any[] } | null>(null);
 
   if (imageEntries.length === 0) return null;
-
-  const currentSlot = imageEntries[activeIndex][0] as keyof Banknote['images'];
-  const currentImage = imageEntries[activeIndex][1] as string;
 
   const handleResearch = async () => {
     setIsSearching(true);
@@ -35,7 +32,10 @@ const ImageGalleryModal: React.FC<ImageGalleryModalProps> = ({ note, onClose, on
   };
 
   const rotateImage = (degrees: number) => {
-    if (isRotating || !currentImage) return;
+    if (activeIndex === null || isRotating) return;
+    const currentSlot = imageEntries[activeIndex][0] as keyof Banknote['images'];
+    const currentImage = imageEntries[activeIndex][1] as string;
+
     setIsRotating(true);
     const img = new Image();
     img.onload = () => {
@@ -60,18 +60,39 @@ const ImageGalleryModal: React.FC<ImageGalleryModalProps> = ({ note, onClose, on
     </div>
   );
 
+  const getLabel = (key: string) => {
+    switch (key) {
+      case 'front': return 'Frente';
+      case 'back': return 'Verso';
+      case 'detail1': return 'Detalhe 1';
+      case 'detail2': return 'Detalhe 2';
+      default: return key;
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-slate-950/98 backdrop-blur-3xl print:bg-white print:relative print:z-0 print:h-auto print:inset-auto">
       {/* Header Modal */}
       <div className="flex items-center justify-between p-4 text-white border-b border-white/10 print:hidden">
-        <div>
-          <h2 className="text-xl font-bold text-indigo-400">
-            {note.denomination} {note.currency} 
-            <span className="text-slate-500 font-normal ml-2">| {note.country}</span>
-          </h2>
-          <p className="text-[10px] uppercase tracking-widest text-slate-500">
-            Visualizando {activeIndex + 1} de {imageEntries.length} imagens
-          </p>
+        <div className="flex items-center gap-4">
+          {activeIndex !== null && (
+            <button 
+              onClick={() => setActiveIndex(null)}
+              className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 text-indigo-400 transition-colors"
+              title="Voltar para Grade"
+            >
+              <i className="fa-solid fa-grid-2"></i>
+            </button>
+          )}
+          <div>
+            <h2 className="text-xl font-bold text-indigo-400">
+              {note.denomination} {note.currency} 
+              <span className="text-slate-500 font-normal ml-2">| {note.country}</span>
+            </h2>
+            <p className="text-[10px] uppercase tracking-widest text-slate-500">
+              {activeIndex === null ? `Acervo de Imagens (${imageEntries.length})` : `Visualizando: ${getLabel(imageEntries[activeIndex][0])}`}
+            </p>
+          </div>
         </div>
         
         <div className="flex items-center gap-3">
@@ -86,13 +107,17 @@ const ImageGalleryModal: React.FC<ImageGalleryModalProps> = ({ note, onClose, on
           <button onClick={() => window.print()} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 transition-colors" title="Imprimir Ficha">
             <i className="fa-solid fa-print"></i>
           </button>
-          <div className="h-8 w-[1px] bg-white/10 mx-2"></div>
-          <button onClick={() => rotateImage(-90)} className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 transition-colors" title="Girar Esquerda">
-            <i className="fa-solid fa-rotate-left"></i>
-          </button>
-          <button onClick={() => rotateImage(90)} className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 transition-colors" title="Girar Direita">
-            <i className="fa-solid fa-rotate-right"></i>
-          </button>
+          {activeIndex !== null && (
+            <>
+              <div className="h-8 w-[1px] bg-white/10 mx-2"></div>
+              <button onClick={() => rotateImage(-90)} className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 transition-colors" title="Girar Esquerda">
+                <i className="fa-solid fa-rotate-left"></i>
+              </button>
+              <button onClick={() => rotateImage(90)} className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 transition-colors" title="Girar Direita">
+                <i className="fa-solid fa-rotate-right"></i>
+              </button>
+            </>
+          )}
           <button onClick={onClose} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-rose-500/20 text-rose-400 transition-colors">
             <i className="fa-solid fa-xmark text-2xl"></i>
           </button>
@@ -102,26 +127,77 @@ const ImageGalleryModal: React.FC<ImageGalleryModalProps> = ({ note, onClose, on
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden print:block print:p-0">
         
-        {/* Viewport da Imagem */}
-        <div className="flex-1 relative flex flex-col items-center justify-center p-4 md:p-8 overflow-hidden print:block print:p-0 print:mb-8">
-           <div className="relative w-full h-full flex items-center justify-center cursor-zoom-in group print:h-auto">
-              <img 
-                src={currentImage} 
-                className="max-w-full max-h-full object-contain shadow-2xl rounded-sm transition-transform duration-300 print:shadow-none print:w-full" 
-                style={{ transform: `scale(${zoom})` }}
-                onClick={() => setZoom(zoom === 1 ? 2 : 1)}
-                alt="banknote" 
-              />
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 bg-black/40 backdrop-blur-md rounded-full text-[10px] text-white/60 uppercase tracking-[0.2em] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                Clique para ampliar
+        {/* Main Viewport */}
+        <div className="flex-1 relative overflow-hidden flex flex-col p-4 md:p-8 print:block print:p-0">
+          {activeIndex === null ? (
+            /* Grid View */
+            <div className="w-full h-full grid grid-cols-1 sm:grid-cols-2 gap-6 items-center justify-center overflow-y-auto p-4 animate-in fade-in duration-500">
+              {imageEntries.map(([key, src], idx) => (
+                <div 
+                  key={key}
+                  onClick={() => setActiveIndex(idx)}
+                  className="group relative aspect-[1.6/1] bg-slate-900 rounded-2xl border border-white/5 overflow-hidden cursor-pointer hover:border-indigo-500/50 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all"
+                >
+                  <img src={src as string} className="w-full h-full object-contain p-4 group-hover:scale-105 transition-transform duration-500" alt={key} />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent opacity-60 group-hover:opacity-40 transition-opacity"></div>
+                  <div className="absolute bottom-4 left-6">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-1 block">Cédula</span>
+                    <h4 className="text-white font-black text-lg">{getLabel(key)}</h4>
+                  </div>
+                  <div className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all">
+                    <i className="fa-solid fa-expand"></i>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            /* Individual Viewport with Zoom */
+            <div className="relative w-full h-full flex flex-col items-center justify-center animate-in zoom-in-95 duration-300 print:block">
+              <div 
+                className={`relative w-full h-full flex items-center justify-center transition-all ${zoom === 1 ? 'cursor-zoom-in' : 'cursor-zoom-out'}`}
+                onClick={() => setZoom(zoom === 1 ? 2.5 : 1)}
+              >
+                <img 
+                  src={imageEntries[activeIndex][1] as string} 
+                  className={`max-w-full max-h-full object-contain shadow-2xl rounded-sm transition-transform duration-500 ${zoom > 1 ? 'shadow-indigo-500/20' : ''} print:shadow-none print:w-full`} 
+                  style={{ transform: `scale(${zoom})` }}
+                  alt="selected banknote" 
+                />
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-4 px-6 py-2 bg-black/40 backdrop-blur-xl rounded-full border border-white/10 opacity-0 hover:opacity-100 transition-opacity pointer-events-none">
+                  <div className="flex items-center gap-2">
+                    <i className="fa-solid fa-magnifying-glass text-[10px] text-indigo-400"></i>
+                    <span className="text-[10px] text-white/60 font-black uppercase tracking-widest">
+                      {zoom === 1 ? 'Clique para Zoom' : 'Clique para Reduzir'}
+                    </span>
+                  </div>
+                  {zoom > 1 && (
+                    <div className="h-4 w-[1px] bg-white/10"></div>
+                  )}
+                  {zoom > 1 && (
+                    <span className="text-[10px] text-indigo-400 font-black">2.5x</span>
+                  )}
+                </div>
               </div>
-           </div>
+
+              {/* Navigation Arrows for Individual View */}
+              <button 
+                onClick={(e) => { e.stopPropagation(); setActiveIndex((activeIndex - 1 + imageEntries.length) % imageEntries.length); setZoom(1); }}
+                className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/5 hover:bg-indigo-600 hover:text-white transition-all border border-white/10 flex items-center justify-center group"
+              >
+                <i className="fa-solid fa-chevron-left group-hover:-translate-x-1 transition-transform"></i>
+              </button>
+              <button 
+                onClick={(e) => { e.stopPropagation(); setActiveIndex((activeIndex + 1) % imageEntries.length); setZoom(1); }}
+                className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/5 hover:bg-indigo-600 hover:text-white transition-all border border-white/10 flex items-center justify-center group"
+              >
+                <i className="fa-solid fa-chevron-right group-hover:translate-x-1 transition-transform"></i>
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* Painel Lateral de Informações (On Screen) */}
+        {/* Info Panel */}
         <div className="w-full md:w-[450px] bg-slate-900/50 border-l border-white/10 flex flex-col overflow-y-auto print:hidden">
-          
-          {/* Ficha Técnica Estruturada */}
           <div className="p-8 border-b border-white/10">
             <h3 className="text-white font-black mb-6 flex items-center gap-3">
               <i className="fa-solid fa-list-ul text-indigo-400"></i>
@@ -155,7 +231,6 @@ const ImageGalleryModal: React.FC<ImageGalleryModalProps> = ({ note, onClose, on
             )}
           </div>
 
-          {/* Contexto Histórico (IA) */}
           <div className={`p-8 transition-all duration-500 ${historyInfo ? 'opacity-100' : 'opacity-40'}`}>
             <h3 className="text-indigo-400 font-black mb-6 flex items-center gap-3">
               <i className="fa-solid fa-scroll"></i>
@@ -198,7 +273,7 @@ const ImageGalleryModal: React.FC<ImageGalleryModalProps> = ({ note, onClose, on
           </div>
         </div>
 
-        {/* Print Layout (Only visible when printing) */}
+        {/* Print Layout */}
         <div className="hidden print:block w-full p-0">
            <div className="grid grid-cols-2 gap-12 border-t-4 border-slate-900 pt-12">
               <div>
@@ -225,7 +300,7 @@ const ImageGalleryModal: React.FC<ImageGalleryModalProps> = ({ note, onClose, on
         </div>
       </div>
 
-      {/* Thumbnails Modal (Footer) */}
+      {/* Thumbnails Footer (Visible in both views) */}
       <div className="p-4 bg-black/40 border-t border-white/10 flex justify-center gap-4 print:hidden overflow-x-auto">
         {imageEntries.map(([key, src], idx) => (
           <button 
@@ -239,8 +314,18 @@ const ImageGalleryModal: React.FC<ImageGalleryModalProps> = ({ note, onClose, on
           >
             <img src={src as string} className="w-full h-full object-cover" alt="thumb" />
             <div className={`absolute inset-0 bg-indigo-500/10 transition-opacity ${activeIndex === idx ? 'opacity-100' : 'opacity-0'}`}></div>
+            <div className="absolute bottom-1 right-1 px-1 bg-black/60 rounded text-[7px] text-white font-bold uppercase">{getLabel(key)}</div>
           </button>
         ))}
+        {activeIndex !== null && (
+          <button 
+            onClick={() => setActiveIndex(null)}
+            className="w-12 h-16 rounded-xl bg-white/5 border-2 border-dashed border-white/10 hover:border-indigo-500 hover:bg-white/10 text-white/40 hover:text-indigo-400 transition-all flex flex-col items-center justify-center gap-1"
+          >
+            <i className="fa-solid fa-grid-2 text-xs"></i>
+            <span className="text-[7px] font-bold uppercase">Grade</span>
+          </button>
+        )}
       </div>
     </div>
   );
