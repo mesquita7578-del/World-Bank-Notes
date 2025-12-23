@@ -152,21 +152,21 @@ const App: React.FC = () => {
 
       {/* Painel de Estatísticas Rápido */}
       {!isAdding && !editingId && (
-        <div className="max-w-7xl mx-auto px-6 mt-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-              <p className="text-slate-500 text-xs font-bold uppercase mb-1">Total de Notas</p>
-              <p className="text-2xl font-black text-slate-800">{stats.total}</p>
+        <div className="max-w-7xl mx-auto px-6 mt-6">
+          <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+            <div className="bg-white p-3 pr-8 rounded-xl border border-slate-200 shadow-sm min-w-max">
+              <p className="text-slate-400 text-[9px] font-bold uppercase mb-0.5 tracking-wider">Total de Notas</p>
+              <p className="text-xl font-black text-slate-800">{stats.total}</p>
             </div>
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-              <p className="text-slate-500 text-xs font-bold uppercase mb-1">Países</p>
-              <p className="text-2xl font-black text-slate-800">{stats.countries}</p>
+            <div className="bg-white p-3 pr-8 rounded-xl border border-slate-200 shadow-sm min-w-max">
+              <p className="text-slate-400 text-[9px] font-bold uppercase mb-0.5 tracking-wider">Países Catalogados</p>
+              <p className="text-xl font-black text-slate-800">{stats.countries}</p>
             </div>
           </div>
         </div>
       )}
 
-      <main className="max-w-7xl mx-auto p-6">
+      <main className="max-w-7xl mx-auto p-4 md:p-6">
         {isAdding || editingId ? (
           <div className="max-w-5xl mx-auto">
             <div className="flex items-center justify-between mb-8">
@@ -190,93 +190,101 @@ const App: React.FC = () => {
             />
           </div>
         ) : (
-          <div className="mt-4">
-            <div className="flex justify-between items-center mb-8">
-              <h2 className="text-xl font-bold text-slate-700 flex items-center gap-3">
-                <i className="fa-solid fa-list-ul text-indigo-500"></i>
-                Catálogo Atual ({filteredNotes.length})
+          <div className="mt-2">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-sm font-bold text-slate-500 flex items-center gap-2 uppercase tracking-widest">
+                <i className="fa-solid fa-layer-group text-indigo-400"></i>
+                Catálogo ({filteredNotes.length})
               </h2>
             </div>
 
             {filteredNotes.length === 0 ? (
               <div className="bg-white rounded-[2rem] p-24 border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-center">
-                <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mb-6">
-                  <i className="fa-solid fa-magnifying-glass text-4xl text-slate-200"></i>
+                <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-6">
+                  <i className="fa-solid fa-magnifying-glass text-3xl text-slate-200"></i>
                 </div>
-                <h3 className="text-2xl font-black text-slate-800 mb-2">Nada por aqui ainda</h3>
-                <p className="text-slate-500 max-w-sm mb-8">Sua base de dados está vazia ou o filtro não retornou resultados. Vamos começar?</p>
+                <h3 className="text-xl font-black text-slate-800 mb-2">Sem resultados</h3>
+                <p className="text-sm text-slate-500 max-w-xs mb-8">Não encontramos registros para sua busca. Adicione novas notas para expandir sua coleção.</p>
                 <button 
                   onClick={() => setIsAdding(true)}
-                  className="px-10 py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-2xl shadow-indigo-200 hover:bg-indigo-700 transition-all"
+                  className="px-8 py-3 bg-indigo-600 text-white rounded-xl font-black shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all"
                 >
-                  Adicionar Nota Nº 1
+                  Adicionar Nota
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
                 {filteredNotes.map(note => (
-                  <div key={note.id} className="bg-white rounded-3xl border border-slate-100 shadow-sm hover:shadow-2xl hover:-translate-y-1 transition-all group overflow-hidden flex flex-col">
-                    {/* Preview da Imagem */}
-                    <div className="aspect-[16/10] bg-slate-100 relative overflow-hidden cursor-pointer" onClick={() => setViewGalleryNoteId(note.id)}>
+                  <div key={note.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all group overflow-hidden flex flex-col">
+                    {/* Preview da Imagem Compacto */}
+                    <div className="aspect-[1.5/1] bg-slate-100 relative overflow-hidden cursor-pointer" onClick={() => setViewGalleryNoteId(note.id)}>
                       {note.images.front ? (
                         <img src={note.images.front} alt={note.pickId} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
                       ) : (
                         <div className="flex items-center justify-center h-full text-slate-200">
-                          <i className="fa-solid fa-panorama text-5xl"></i>
+                          <i className="fa-solid fa-panorama text-3xl"></i>
                         </div>
                       )}
                       
-                      {/* Overlay de Ações */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center gap-3">
-                         <button 
-                          onClick={(e) => { e.stopPropagation(); setViewGalleryNoteId(note.id); }}
-                          className="w-10 h-10 bg-white text-slate-900 rounded-full flex items-center justify-center shadow-xl hover:bg-indigo-500 hover:text-white transition-all"
-                        >
-                          <i className="fa-solid fa-expand"></i>
-                        </button>
-                         <button 
+                      {/* Overlay Simplificado */}
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center gap-2">
+                        <i className="fa-solid fa-expand text-white opacity-0 group-hover:opacity-100 scale-50 group-hover:scale-100 transition-all text-xl drop-shadow-md"></i>
+                      </div>
+
+                      {/* Botões de Ação Rápidos */}
+                      <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                        <button 
                           onClick={(e) => { e.stopPropagation(); setEditingId(note.id); }}
-                          className="w-10 h-10 bg-white text-indigo-600 rounded-full flex items-center justify-center shadow-xl hover:bg-indigo-600 hover:text-white transition-all"
+                          className="w-7 h-7 bg-white/90 backdrop-blur-sm text-indigo-600 rounded-lg flex items-center justify-center shadow-md hover:bg-indigo-600 hover:text-white transition-all"
                         >
-                          <i className="fa-solid fa-pen"></i>
+                          <i className="fa-solid fa-pen text-[10px]"></i>
+                        </button>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleDelete(note.id); }}
+                          className="w-7 h-7 bg-white/90 backdrop-blur-sm text-rose-600 rounded-lg flex items-center justify-center shadow-md hover:bg-rose-600 hover:text-white transition-all"
+                        >
+                          <i className="fa-solid fa-trash text-[10px]"></i>
                         </button>
                       </div>
 
-                      {/* Pick ID Badge */}
-                      <div className="absolute top-3 left-3 px-3 py-1 bg-white/90 backdrop-blur-md border border-slate-200 rounded-lg text-[10px] text-slate-800 font-black shadow-sm z-10">
-                        {note.pickId || 'SEM PICK'}
+                      {/* Pick ID Compacto */}
+                      <div className="absolute bottom-1 left-1 px-1.5 py-0.5 bg-black/40 backdrop-blur-md rounded text-[8px] text-white font-black tracking-tight z-10">
+                        {note.pickId || 'S/ID'}
                       </div>
                     </div>
                     
-                    {/* Info da Cédula */}
-                    <div className="p-5 flex-1 flex flex-col">
-                      <div className="flex items-center gap-1.5 text-[10px] text-indigo-500 font-black uppercase tracking-[0.1em] mb-2">
-                        <i className="fa-solid fa-globe"></i>
+                    {/* Info Reduzida mas Completa */}
+                    <div className="p-3 flex-1 flex flex-col">
+                      <div className="flex items-center gap-1 text-[8px] text-indigo-500 font-black uppercase tracking-wider mb-0.5 truncate">
+                        <i className="fa-solid fa-globe scale-75"></i>
                         {note.country}
                       </div>
-                      <h3 className="text-xl font-black text-slate-800 leading-none mb-1">
+                      <h3 className="text-sm font-black text-slate-800 leading-tight mb-0.5 truncate" title={`${note.denomination} ${note.currency}`}>
                         {note.denomination} {note.currency}
                       </h3>
-                      <p className="text-xs text-slate-400 font-medium mb-4">
-                        {note.issueDate || 'Data Indefinida'}
+                      <p className="text-[9px] text-slate-400 font-medium truncate mb-2">
+                        {note.issueDate || 'S/ Data'} • {note.material}
                       </p>
                       
-                      <div className="mt-auto pt-4 border-t border-slate-50 flex justify-between items-center">
-                        <div className="flex flex-col">
-                          <span className="text-[9px] text-slate-400 font-bold uppercase">Material</span>
-                          <span className="text-xs text-slate-700 font-bold">{note.material}</span>
-                        </div>
-                        <div className="flex -space-x-2.5">
-                          {Object.entries(note.images).filter(([_, v]) => !!v).map(([key, src], i) => (
+                      <div className="mt-auto pt-2 border-t border-slate-50 flex justify-between items-center">
+                        <span className="text-[8px] text-slate-300 font-bold uppercase truncate max-w-[50px]">
+                          {note.type}
+                        </span>
+                        <div className="flex -space-x-1.5">
+                          {Object.entries(note.images).filter(([_, v]) => !!v).slice(0, 3).map(([key, src], i) => (
                             <button 
                               key={key} 
                               onClick={(e) => { e.stopPropagation(); setViewGalleryNoteId(note.id); }}
-                              className="w-8 h-8 rounded-full border-2 border-white bg-slate-200 overflow-hidden hover:z-20 hover:scale-110 transition-all shadow-md"
-                              title={key}
+                              className="w-5 h-5 rounded-full border border-white bg-slate-200 overflow-hidden hover:z-20 transition-all shadow-sm"
                             >
-                              <img src={src} className="w-full h-full object-cover" alt="thumbnail" />
+                              <img src={src} className="w-full h-full object-cover" alt="thumb" />
                             </button>
                           ))}
+                          {Object.values(note.images).filter(Boolean).length > 3 && (
+                            <div className="w-5 h-5 rounded-full border border-white bg-slate-800 text-[6px] text-white flex items-center justify-center font-bold">
+                              +{Object.values(note.images).filter(Boolean).length - 3}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -296,27 +304,13 @@ const App: React.FC = () => {
         />
       )}
 
-      <footer className="bg-slate-900 text-slate-500 py-16 mt-24 border-t border-slate-800">
-        <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-12 text-center md:text-left">
-          <div className="flex flex-col gap-4">
-            <h4 className="text-white font-black tracking-tight text-lg">NUMIS-ARCHIVE</h4>
-            <p className="text-sm leading-relaxed max-w-xs mx-auto md:mx-0">O sistema definitivo para catalogação e restauração digital de cédulas históricas e modernas.</p>
-          </div>
-          <div className="flex flex-col gap-4 items-center">
-            <h4 className="text-white font-black tracking-tight text-lg">REDES SOCIAIS</h4>
-            <div className="flex gap-6 text-2xl">
-              <i className="fa-brands fa-instagram hover:text-white cursor-pointer transition-colors"></i>
-              <i className="fa-brands fa-facebook hover:text-white cursor-pointer transition-colors"></i>
-              <i className="fa-brands fa-linkedin hover:text-white cursor-pointer transition-colors"></i>
-            </div>
-          </div>
-          <div className="flex flex-col gap-4 md:items-end">
-            <h4 className="text-white font-black tracking-tight text-lg">TECNOLOGIA</h4>
-            <p className="text-xs flex items-center gap-2 justify-center md:justify-end">
-              Processado por <span className="text-indigo-400 font-bold">Gemini 2.5 Flash</span>
-            </p>
-            <p className="text-[10px] mt-4 opacity-50">© 2024 - Todos os direitos reservados</p>
-          </div>
+      <footer className="bg-slate-900 text-slate-500 py-10 mt-20 border-t border-slate-800">
+        <div className="max-w-7xl mx-auto px-6 text-center">
+          <h4 className="text-white font-black tracking-tighter text-md mb-2">NUMIS-ARCHIVE</h4>
+          <p className="text-[10px] uppercase tracking-[0.3em] mb-6 opacity-40">Global Banknote Database</p>
+          <p className="text-xs max-w-md mx-auto mb-8 opacity-60">Catalogação profissional e restauração digital via Inteligência Artificial Gemini 2.5 Flash.</p>
+          <div className="h-[1px] w-12 bg-indigo-500/30 mx-auto mb-8"></div>
+          <p className="text-[10px] opacity-30">© 2024 - Sistema de Gerenciamento Numismático</p>
         </div>
       </footer>
     </div>
