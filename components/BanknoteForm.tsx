@@ -25,6 +25,7 @@ const BanknoteForm: React.FC<BanknoteFormProps> = ({ initialData, onSubmit, onCa
     setDetails: initialData?.setDetails || '',
     type: initialData?.type || 'Circulação',
     material: initialData?.material || 'Papel',
+    grade: initialData?.grade || 'UNC',
     size: initialData?.size || '',
     comments: initialData?.comments || '',
     images: initialData?.images || {},
@@ -36,202 +37,74 @@ const BanknoteForm: React.FC<BanknoteFormProps> = ({ initialData, onSubmit, onCa
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleImageChange = (slot: keyof Banknote['images'], base64: string) => {
-    setFormData(prev => ({
-      ...prev,
-      images: { ...prev.images, [slot]: base64 }
-    }));
-  };
-
   const handleAiExtraction = async () => {
-    // Tenta usar a imagem da frente primeiro, se não houver, tenta qualquer outra
-    const sourceImage = formData.images.front || formData.images.back || formData.images.detail1 || formData.images.detail2;
-    
-    if (!sourceImage) {
-      alert("Por favor, carregue pelo menos uma imagem (preferencialmente a frente) para que a IA possa analisar.");
-      return;
-    }
-
+    const source = formData.images.front || formData.images.back;
+    if (!source) { alert("Carregue a imagem da frente."); return; }
     setIsExtracting(true);
     try {
-      const extractedData = await geminiService.extractBanknoteData(sourceImage);
-      if (extractedData) {
-        setFormData(prev => ({
-          ...prev,
-          ...extractedData,
-          // Mantém as imagens originais e ID
-          images: prev.images,
-          id: prev.id,
-          createdAt: prev.createdAt
-        }));
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Erro ao extrair dados. Verifique sua conexão e chave de API.");
-    } finally {
-      setIsExtracting(false);
-    }
+      const data = await geminiService.extractBanknoteData(source);
+      if (data) setFormData(prev => ({ ...prev, ...data }));
+    } catch (e) { console.error(e); } finally { setIsExtracting(false); }
   };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit(formData);
-  };
-
-  const InputField = ({ label, name, type = "text", placeholder = "" }: { label: string, name: keyof Banknote, type?: string, placeholder?: string }) => (
-    <div className="flex flex-col gap-1">
-      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{label}</label>
-      <input
-        type={type}
-        name={name}
-        value={formData[name] as string}
-        onChange={handleChange}
-        placeholder={placeholder}
-        className="border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all bg-slate-50/50"
-        required={['country', 'currency', 'denomination'].includes(name)}
-      />
-    </div>
-  );
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8 pb-20">
-      {/* Seção de Imagens primeiro para facilitar a extração */}
+    <form onSubmit={(e) => { e.preventDefault(); onSubmit(formData); }} className="space-y-8 pb-20">
       <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-          <h2 className="text-xl font-black text-slate-800 flex items-center gap-3">
-            <i className="fa-solid fa-images text-indigo-500"></i>
-            Galeria de Imagens
-          </h2>
-          <button
-            type="button"
-            onClick={handleAiExtraction}
-            disabled={isExtracting}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-all shadow-lg ${
-              isExtracting 
-              ? 'bg-slate-100 text-slate-400 cursor-not-allowed' 
-              : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white shadow-indigo-100'
-            }`}
-          >
-            {isExtracting ? (
-              <>
-                <i className="fa-solid fa-circle-notch animate-spin"></i>
-                Lendo Cédula...
-              </>
-            ) : (
-              <>
-                <i className="fa-solid fa-wand-sparkles"></i>
-                Preencher Dados com IA
-              </>
-            )}
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-black text-slate-800">Imagens</h2>
+          <button type="button" onClick={handleAiExtraction} disabled={isExtracting} className="bg-indigo-50 text-indigo-600 px-6 py-2 rounded-xl font-bold flex items-center gap-2">
+            {isExtracting ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-wand-sparkles"></i>} IA Auto-Preencher
           </button>
         </div>
-        
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <ImageUploader 
-            label="Frente" 
-            image={formData.images.front} 
-            onChange={(b) => handleImageChange('front', b)} 
-          />
-          <ImageUploader 
-            label="Verso" 
-            image={formData.images.back} 
-            onChange={(b) => handleImageChange('back', b)} 
-          />
-          <ImageUploader 
-            label="Detalhe 1" 
-            image={formData.images.detail1} 
-            onChange={(b) => handleImageChange('detail1', b)} 
-          />
-          <ImageUploader 
-            label="Detalhe 2" 
-            image={formData.images.detail2} 
-            onChange={(b) => handleImageChange('detail2', b)} 
-          />
-        </div>
-        <p className="text-[10px] text-slate-400 mt-4 uppercase tracking-widest text-center">
-          Dica: Carregue a imagem da frente e clique em "Preencher Dados com IA" para economizar tempo.
-        </p>
-      </div>
-
-      <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
-        <h2 className="text-xl font-black text-slate-800 mb-8 flex items-center gap-3">
-          <i className="fa-solid fa-file-invoice text-indigo-500"></i>
-          Especificações Técnicas
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-6">
-          <InputField label="Identificação (Pick/ID)" name="pickId" placeholder="Ex: P-123a" />
-          <InputField label="País" name="country" placeholder="Ex: Brasil" />
-          <InputField label="Autoridade" name="authority" placeholder="Ex: Banco Central do Brasil" />
-          <InputField label="Moeda" name="currency" placeholder="Ex: Cruzeiros" />
-          <InputField label="Denominação" name="denomination" placeholder="Ex: 1000" />
-          <InputField label="Data de Emissão" name="issueDate" placeholder="Ex: 1986" />
-          <InputField label="Itens no Conjunto" name="itemsInSet" />
-          <InputField label="Nº do Item no Conjunto" name="setItemNumber" />
-          <InputField label="Detalhes do Conjunto" name="setDetails" />
-          
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Material</label>
-            <select 
-              name="material" 
-              value={formData.material} 
-              onChange={handleChange} 
-              className="border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-indigo-500 outline-none bg-slate-50/50 font-medium"
-            >
-              <option value="Papel">Papel</option>
-              <option value="Polímero">Polímero</option>
-              <option value="Híbrido">Híbrido</option>
-              <option value="Outro">Outro</option>
-            </select>
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tipo</label>
-            <select 
-              name="type" 
-              value={formData.type} 
-              onChange={handleChange} 
-              className="border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-indigo-500 outline-none bg-slate-50/50 font-medium"
-            >
-              <option value="Circulação">Circulação Regular</option>
-              <option value="Comemorativa">Comemorativa</option>
-              <option value="Espécime">Espécime</option>
-              <option value="Prova">Prova</option>
-              <option value="Local">Emissão Local</option>
-            </select>
-          </div>
-
-          <InputField label="Tamanho" name="size" placeholder="Ex: 154 x 74 mm" />
-
-          <div className="flex flex-col gap-1 lg:col-span-3">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Comentários e Observações</label>
-            <textarea
-              name="comments"
-              value={formData.comments}
-              onChange={handleChange}
-              rows={4}
-              placeholder="Descreva marcas d'água, assinaturas, estado de conservação..."
-              className="border border-slate-200 rounded-2xl p-4 focus:ring-2 focus:ring-indigo-500 outline-none transition-all bg-slate-50/50"
-            />
-          </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {(['front', 'back', 'detail1', 'detail2'] as const).map(slot => (
+            <ImageUploader key={slot} label={slot} image={formData.images[slot]} onChange={(b) => setFormData(p => ({ ...p, images: { ...p.images, [slot]: b }}))} />
+          ))}
         </div>
       </div>
 
-      {/* Barra de Ações Fixa */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-slate-100 p-5 flex justify-center gap-4 z-40 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
-        <button 
-          type="button" 
-          onClick={onCancel}
-          className="px-8 py-3 text-slate-500 font-bold hover:bg-slate-100 rounded-2xl transition-all"
-        >
-          Descartar
-        </button>
-        <button 
-          type="submit" 
-          className="px-12 py-3 bg-slate-900 text-white rounded-2xl font-black shadow-2xl shadow-slate-200 hover:bg-indigo-600 transition-all transform hover:scale-105 active:scale-95 flex items-center gap-2"
-        >
-          <i className="fa-solid fa-check-double"></i>
-          Finalizar Cadastro
-        </button>
+      <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="flex flex-col gap-1">
+          <label className="text-[10px] font-bold text-slate-400 uppercase">País</label>
+          <input name="country" value={formData.country} onChange={handleChange} className="bg-slate-50 p-3 rounded-xl outline-none border border-slate-100 focus:border-indigo-400" required />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-[10px] font-bold text-slate-400 uppercase">Valor Nominal</label>
+          <input name="denomination" value={formData.denomination} onChange={handleChange} className="bg-slate-50 p-3 rounded-xl outline-none border border-slate-100 focus:border-indigo-400" required />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-[10px] font-bold text-slate-400 uppercase">Moeda</label>
+          <input name="currency" value={formData.currency} onChange={handleChange} className="bg-slate-50 p-3 rounded-xl outline-none border border-slate-100 focus:border-indigo-400" required />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-[10px] font-bold text-slate-400 uppercase">Data/Ano</label>
+          <input name="issueDate" value={formData.issueDate} onChange={handleChange} className="bg-slate-50 p-3 rounded-xl outline-none border border-slate-100 focus:border-indigo-400" />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-[10px] font-bold text-slate-400 uppercase">Pick/ID</label>
+          <input name="pickId" value={formData.pickId} onChange={handleChange} className="bg-slate-50 p-3 rounded-xl outline-none border border-slate-100 focus:border-indigo-400" />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-[10px] font-bold text-slate-400 uppercase">Estado (Grade)</label>
+          <select name="grade" value={formData.grade} onChange={handleChange} className="bg-slate-50 p-3 rounded-xl outline-none border border-slate-100 focus:border-indigo-400 font-bold">
+            <option value="UNC">UNC (Flor de Estampa)</option>
+            <option value="AU">AU (Quase F.E.)</option>
+            <option value="XF">XF (Soberba)</option>
+            <option value="VF">VF (Muito Bem Cons.)</option>
+            <option value="F">F (Bem Conservada)</option>
+            <option value="VG">VG (Muito Gasta)</option>
+            <option value="G">G (Gasta/Pobre)</option>
+          </select>
+        </div>
+        <div className="md:col-span-3 flex flex-col gap-1">
+          <label className="text-[10px] font-bold text-slate-400 uppercase">Comentários</label>
+          <textarea name="comments" value={formData.comments} onChange={handleChange} rows={3} className="bg-slate-50 p-3 rounded-xl outline-none border border-slate-100 focus:border-indigo-400" />
+        </div>
+      </div>
+
+      <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl p-4 flex justify-center gap-4 z-50 border-t border-slate-200">
+        <button type="button" onClick={onCancel} className="px-8 py-3 text-slate-500 font-bold hover:bg-slate-100 rounded-xl">Descartar</button>
+        <button type="submit" className="px-12 py-3 bg-slate-900 text-white rounded-xl font-black shadow-lg">Salvar Registro</button>
       </div>
     </form>
   );

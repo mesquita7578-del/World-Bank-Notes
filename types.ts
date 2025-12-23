@@ -13,6 +13,7 @@ export interface Banknote {
   type: string;
   material: string;
   size: string;
+  grade: string; // Estado de Conservação
   comments: string;
   images: {
     front?: string;
