@@ -9,6 +9,7 @@ export class GeminiService {
     this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
   }
 
+  // Uses gemini-3-flash-preview for structured data extraction from images
   async extractBanknoteData(base64Image: string): Promise<Partial<Banknote> | null> {
     try {
       const cleanBase64 = base64Image.split(',')[1] || base64Image;
@@ -16,22 +17,19 @@ export class GeminiService {
 
       const response = await this.ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: [
-          {
-            role: 'user',
-            parts: [
-              {
-                inlineData: {
-                  data: cleanBase64,
-                  mimeType: mimeType,
-                },
+        contents: {
+          parts: [
+            {
+              inlineData: {
+                data: cleanBase64,
+                mimeType: mimeType,
               },
-              {
-                text: "Analise esta cédula (banknote) e extraia todos os detalhes técnicos possíveis. Retorne os dados estritamente em formato JSON seguindo as propriedades especificadas.",
-              },
-            ],
-          }
-        ],
+            },
+            {
+              text: "Analise esta cédula (banknote) e extraia todos os detalhes técnicos possíveis. Retorne os dados estritamente em formato JSON seguindo as propriedades especificadas.",
+            },
+          ],
+        },
         config: {
           responseMimeType: "application/json",
           responseSchema: {
@@ -63,6 +61,7 @@ export class GeminiService {
     }
   }
 
+  // Uses gemini-3-flash-preview with googleSearch tool for historical context
   async getHistoricalContext(note: Banknote): Promise<{ text: string, sources: any[] }> {
     try {
       const prompt = `Forneça um contexto histórico detalhado, raridade e curiosidades sobre a cédula: ${note.denomination} ${note.currency} de ${note.country}, emitida em ${note.issueDate}. Use o Pick ID ${note.pickId} se disponível para maior precisão.`;
@@ -75,6 +74,7 @@ export class GeminiService {
         }
       });
 
+      // Extract URLs from groundingChunks as required by guidelines
       return {
         text: response.text || "Informação não disponível.",
         sources: response.candidates?.[0]?.groundingMetadata?.groundingChunks || []
@@ -85,6 +85,7 @@ export class GeminiService {
     }
   }
 
+  // Uses gemini-2.5-flash-image for image restoration/editing
   async editImage(base64Image: string, prompt: string): Promise<string | null> {
     try {
       const cleanBase64 = base64Image.split(',')[1] || base64Image;
@@ -102,6 +103,7 @@ export class GeminiService {
 
       if (response.candidates?.[0]?.content?.parts) {
         for (const part of response.candidates[0].content.parts) {
+          // Find and return the processed image part
           if (part.inlineData) return `data:image/png;base64,${part.inlineData.data}`;
         }
       }

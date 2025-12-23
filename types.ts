@@ -1,7 +1,7 @@
 
 export interface Banknote {
   id: string;
-  pickId: string; // Identificação da Escolha
+  pickId: string;
   country: string;
   authority: string;
   currency: string;
@@ -13,7 +13,8 @@ export interface Banknote {
   type: string;
   material: string;
   size: string;
-  grade: string; // Estado de Conservação
+  grade: string;
+  estimatedValue: string; // Novo: Valor de mercado/estimado
   comments: string;
   images: {
     front?: string;
@@ -25,8 +26,3 @@ export interface Banknote {
 }
 
 export type ImageSlot = 'front' | 'back' | 'detail1' | 'detail2';
-
-export interface AppState {
-  notes: Banknote[];
-  searchQuery: string;
-}
