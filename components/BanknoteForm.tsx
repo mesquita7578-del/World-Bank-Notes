@@ -49,16 +49,17 @@ const BanknoteForm: React.FC<BanknoteFormProps> = ({ initialData, onSubmit, onCa
   };
 
   return (
-    <form onSubmit={(e) => { e.preventDefault(); onSubmit(formData); }} className="space-y-8 pb-32">
+    <form onSubmit={(e) => { e.preventDefault(); onSubmit(formData); }} className="space-y-8 pb-32 animate-in fade-in slide-in-from-bottom-6 duration-500">
+      {/* Seção de Imagens */}
       <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-100">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
           <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3">
              <i className="fa-solid fa-images text-indigo-500"></i>
-             Galeria de Imagens
+             Galeria de Imagens (Máx. 4)
           </h2>
           <button type="button" onClick={handleAiExtraction} disabled={isExtracting} className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-2xl font-black flex items-center gap-3 shadow-lg shadow-indigo-200 transition-all active:scale-95">
             {isExtracting ? <i className="fa-solid fa-circle-notch animate-spin"></i> : <i className="fa-solid fa-wand-sparkles"></i>} 
-            Auto-Preencher via IA
+            IA: Auto-Identificação
           </button>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
@@ -68,45 +69,103 @@ const BanknoteForm: React.FC<BanknoteFormProps> = ({ initialData, onSubmit, onCa
         </div>
       </div>
 
+      {/* Identificação Principal */}
       <div className="bg-white p-10 rounded-[2.5rem] shadow-xl border border-slate-100 grid grid-cols-1 md:grid-cols-3 gap-8">
         <h2 className="text-2xl font-black text-slate-800 md:col-span-3 mb-4 flex items-center gap-3">
-          <i className="fa-solid fa-list-check text-indigo-500"></i>
-          Dados Técnicos
+          <i className="fa-solid fa-id-card text-indigo-500"></i>
+          Identificação Principal
         </h2>
         
         <div className="flex flex-col gap-2">
-          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">País de Origem</label>
-          <input name="country" value={formData.country} onChange={handleChange} className="bg-slate-50 p-4 rounded-2xl outline-none border border-slate-100 focus:border-indigo-500 font-bold transition-all" required />
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Identificação da Escolha (Pick)</label>
+          <input name="pickId" value={formData.pickId} onChange={handleChange} placeholder="Ex: P-123a" className="bg-slate-50 p-4 rounded-2xl outline-none border border-slate-100 focus:border-indigo-500 font-bold" />
         </div>
-        
+
+        <div className="flex flex-col gap-2">
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">País</label>
+          <input name="country" value={formData.country} onChange={handleChange} className="bg-slate-50 p-4 rounded-2xl outline-none border border-slate-100 focus:border-indigo-500 font-bold" required />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Autoridade Emissora</label>
+          <input name="authority" value={formData.authority} onChange={handleChange} placeholder="Ex: Banco Central" className="bg-slate-50 p-4 rounded-2xl outline-none border border-slate-100 focus:border-indigo-500 font-bold" />
+        </div>
+
         <div className="flex flex-col gap-2">
           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Moeda</label>
-          <input name="currency" value={formData.currency} onChange={handleChange} className="bg-slate-50 p-4 rounded-2xl outline-none border border-slate-100 focus:border-indigo-500 font-bold transition-all" required />
+          <input name="currency" value={formData.currency} onChange={handleChange} className="bg-slate-50 p-4 rounded-2xl outline-none border border-slate-100 focus:border-indigo-500 font-bold" required />
         </div>
 
         <div className="flex flex-col gap-2">
           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Denominação</label>
-          <input name="denomination" value={formData.denomination} onChange={handleChange} className="bg-slate-50 p-4 rounded-2xl outline-none border border-slate-100 focus:border-indigo-500 font-bold transition-all" required />
+          <input name="denomination" value={formData.denomination} onChange={handleChange} className="bg-slate-50 p-4 rounded-2xl outline-none border border-slate-100 focus:border-indigo-500 font-bold" required />
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Data / Ano</label>
-          <input name="issueDate" value={formData.issueDate} onChange={handleChange} className="bg-slate-50 p-4 rounded-2xl outline-none border border-slate-100 focus:border-indigo-500 font-bold transition-all" />
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Data de Emissão</label>
+          <input name="issueDate" value={formData.issueDate} onChange={handleChange} placeholder="Ex: 2024 ou 01.01.2024" className="bg-slate-50 p-4 rounded-2xl outline-none border border-slate-100 focus:border-indigo-500 font-bold" />
+        </div>
+      </div>
+
+      {/* Informações do Conjunto */}
+      <div className="bg-white p-10 rounded-[2.5rem] shadow-xl border border-slate-100 grid grid-cols-1 md:grid-cols-3 gap-8">
+        <h2 className="text-2xl font-black text-slate-800 md:col-span-3 mb-4 flex items-center gap-3">
+          <i className="fa-solid fa-layer-group text-indigo-500"></i>
+          Informações do Conjunto / Série
+        </h2>
+        
+        <div className="flex flex-col gap-2">
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nº de Itens no Conjunto</label>
+          <input name="itemsInSet" value={formData.itemsInSet} onChange={handleChange} placeholder="Ex: 6" className="bg-slate-50 p-4 rounded-2xl outline-none border border-slate-100 focus:border-indigo-500 font-bold" />
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Identificação (Pick)</label>
-          <input name="pickId" value={formData.pickId} onChange={handleChange} className="bg-slate-50 p-4 rounded-2xl outline-none border border-slate-100 focus:border-indigo-500 font-bold transition-all" />
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nº do Item neste Conjunto</label>
+          <input name="setItemNumber" value={formData.setItemNumber} onChange={handleChange} placeholder="Ex: 3" className="bg-slate-50 p-4 rounded-2xl outline-none border border-slate-100 focus:border-indigo-500 font-bold" />
+        </div>
+
+        <div className="md:col-span-1 flex flex-col gap-2">
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo</label>
+          <select name="type" value={formData.type} onChange={handleChange} className="bg-slate-50 p-4 rounded-2xl outline-none border border-slate-100 focus:border-indigo-500 font-bold">
+            <option value="Circulação">Circulação</option>
+            <option value="Comemorativa">Comemorativa</option>
+            <option value="Espécime">Espécime</option>
+            <option value="Prova">Prova</option>
+            <option value="Substituição">Substituição (Star)</option>
+          </select>
+        </div>
+
+        <div className="md:col-span-3 flex flex-col gap-2">
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Detalhes do Conjunto</label>
+          <textarea name="setDetails" value={formData.setDetails} onChange={handleChange} rows={2} placeholder="Descrição da série ou conjunto..." className="bg-slate-50 p-4 rounded-2xl outline-none border border-slate-100 focus:border-indigo-500 font-medium" />
+        </div>
+      </div>
+
+      {/* Especificações Técnicas e Avaliação */}
+      <div className="bg-white p-10 rounded-[2.5rem] shadow-xl border border-slate-100 grid grid-cols-1 md:grid-cols-3 gap-8">
+        <h2 className="text-2xl font-black text-slate-800 md:col-span-3 mb-4 flex items-center gap-3">
+          <i className="fa-solid fa-microscope text-indigo-500"></i>
+          Especificações Técnicas
+        </h2>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Material</label>
+          <select name="material" value={formData.material} onChange={handleChange} className="bg-slate-50 p-4 rounded-2xl outline-none border border-slate-100 focus:border-indigo-500 font-bold">
+            <option value="Papel">Papel</option>
+            <option value="Polímero">Polímero</option>
+            <option value="Híbrido">Híbrido</option>
+            <option value="Têxtil">Têxtil</option>
+          </select>
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor Estimado (€)</label>
-          <input name="estimatedValue" type="number" step="0.01" value={formData.estimatedValue} onChange={handleChange} placeholder="0.00" className="bg-emerald-50 p-4 rounded-2xl outline-none border border-emerald-100 focus:border-emerald-500 font-black text-emerald-700 transition-all" />
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tamanho (mm)</label>
+          <input name="size" value={formData.size} onChange={handleChange} placeholder="Ex: 140 x 70" className="bg-slate-50 p-4 rounded-2xl outline-none border border-slate-100 focus:border-indigo-500 font-bold" />
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Estado de Conservação</label>
-          <select name="grade" value={formData.grade} onChange={handleChange} className="bg-slate-50 p-4 rounded-2xl outline-none border border-slate-100 focus:border-indigo-500 font-black transition-all">
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Estado (Grade)</label>
+          <select name="grade" value={formData.grade} onChange={handleChange} className="bg-slate-50 p-4 rounded-2xl outline-none border border-slate-100 focus:border-indigo-500 font-black">
             <option value="UNC">UNC (Flor de Estampa)</option>
             <option value="AU">AU (Quase FE)</option>
             <option value="XF">XF (Soberba)</option>
@@ -118,30 +177,22 @@ const BanknoteForm: React.FC<BanknoteFormProps> = ({ initialData, onSubmit, onCa
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Material</label>
-          <select name="material" value={formData.material} onChange={handleChange} className="bg-slate-50 p-4 rounded-2xl outline-none border border-slate-100 focus:border-indigo-500 font-bold transition-all">
-            <option value="Papel">Papel</option>
-            <option value="Polímero">Polímero</option>
-            <option value="Híbrido">Híbrido</option>
-          </select>
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor Estimado (€)</label>
+          <input name="estimatedValue" type="number" step="0.01" value={formData.estimatedValue} onChange={handleChange} placeholder="0.00" className="bg-emerald-50 p-4 rounded-2xl outline-none border border-emerald-100 focus:border-emerald-500 font-black text-emerald-700" />
         </div>
 
-        <div className="flex flex-col gap-2">
-          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tamanho (mm)</label>
-          <input name="size" value={formData.size} onChange={handleChange} className="bg-slate-50 p-4 rounded-2xl outline-none border border-slate-100 focus:border-indigo-500 font-bold transition-all" />
-        </div>
-
-        <div className="md:col-span-3 flex flex-col gap-2">
-          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Observações Extras</label>
-          <textarea name="comments" value={formData.comments} onChange={handleChange} rows={4} className="bg-slate-50 p-6 rounded-[2rem] outline-none border border-slate-100 focus:border-indigo-500 transition-all font-medium" />
+        <div className="md:col-span-2 flex flex-col gap-2">
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Comentários / Observações</label>
+          <textarea name="comments" value={formData.comments} onChange={handleChange} rows={3} className="bg-slate-50 p-4 rounded-2xl outline-none border border-slate-100 focus:border-indigo-500 font-medium" />
         </div>
       </div>
 
+      {/* Ações Inferiores */}
       <div className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-2xl p-6 flex justify-center gap-6 z-50 border-t border-slate-200">
-        <button type="button" onClick={onCancel} className="px-10 py-4 text-slate-500 font-black hover:bg-slate-100 rounded-2xl transition-all">Descartar</button>
+        <button type="button" onClick={onCancel} className="px-10 py-4 text-slate-500 font-black hover:bg-slate-100 rounded-2xl transition-all">Descartar Alterações</button>
         <button type="submit" className="px-16 py-4 bg-slate-900 text-white rounded-2xl font-black shadow-2xl shadow-slate-300 hover:bg-indigo-600 transition-all transform active:scale-95 flex items-center gap-3">
           <i className="fa-solid fa-cloud-arrow-up"></i>
-          Finalizar Registro
+          Salvar no Banco de Dados
         </button>
       </div>
     </form>
