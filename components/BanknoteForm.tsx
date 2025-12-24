@@ -17,6 +17,7 @@ const BanknoteForm: React.FC<BanknoteFormProps> = ({ initialData, onSubmit, onCa
     id: initialData?.id || crypto.randomUUID(),
     pickId: initialData?.pickId || '',
     country: initialData?.country || '',
+    continent: initialData?.continent || '',
     authority: initialData?.authority || '',
     currency: initialData?.currency || '',
     denomination: initialData?.denomination || '',
@@ -30,6 +31,11 @@ const BanknoteForm: React.FC<BanknoteFormProps> = ({ initialData, onSubmit, onCa
     estimatedValue: initialData?.estimatedValue || '',
     size: initialData?.size || '',
     comments: initialData?.comments || '',
+    minister: initialData?.minister || '',
+    president: initialData?.president || '',
+    stamp: initialData?.stamp || '',
+    seriesNormal: initialData?.seriesNormal || '',
+    seriesReplacement: initialData?.seriesReplacement || '',
     images: initialData?.images || {},
     createdAt: initialData?.createdAt || Date.now(),
   });
@@ -42,43 +48,29 @@ const BanknoteForm: React.FC<BanknoteFormProps> = ({ initialData, onSubmit, onCa
   const handleAiExtraction = async () => {
     const source = formData.images.front || formData.images.back;
     if (!source) { 
-      alert("Por favor, carregue a imagem da frente da cédula primeiro para que a IA possa analisá-la."); 
+      alert("Carregue a imagem da frente primeiro."); 
       return; 
     }
     setIsExtracting(true);
     try {
-      // O novo método faz tudo de uma vez
       const data = await geminiService.extractBanknoteData(source);
-      if (data) {
-        setFormData(prev => ({ ...prev, ...data }));
-      }
+      if (data) setFormData(prev => ({ ...prev, ...data }));
     } catch (e) { 
-      console.error(e); 
-      alert("Houve um problema na super-identificação. Verifique sua conexão e tente novamente.");
-    } finally { 
-      setIsExtracting(false); 
-    }
+      alert("Erro na super-identificação.");
+    } finally { setIsExtracting(false); }
   };
 
   const handleAutoValuation = async () => {
     if (!formData.country || !formData.denomination) {
-      alert("Preencha ao menos o País e a Denominação antes de consultar o valor.");
+      alert("Preencha País e Denominação.");
       return;
     }
     setIsValuing(true);
     try {
       const value = await geminiService.estimateMarketValue(formData);
-      if (value) {
-        setFormData(prev => ({ ...prev, estimatedValue: value }));
-      } else {
-        alert("A IA não conseguiu encontrar um valor de mercado preciso para este item no momento.");
-      }
-    } catch (e) {
-      console.error(e);
-      alert("Erro ao consultar cotação.");
-    } finally {
-      setIsValuing(false);
-    }
+      if (value) setFormData(prev => ({ ...prev, estimatedValue: value }));
+    } catch (e) { alert("Erro ao consultar valor."); }
+    finally { setIsValuing(false); }
   };
 
   return (
@@ -86,32 +78,25 @@ const BanknoteForm: React.FC<BanknoteFormProps> = ({ initialData, onSubmit, onCa
       {/* Seção de Imagens */}
       <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-100">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-          <div className="flex flex-col">
+          <div>
             <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3">
               <i className="fa-solid fa-images text-indigo-500"></i>
               Acervo de Imagens
             </h2>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Carregue a frente para identificação automática</p>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Imagens para Identificação</p>
           </div>
-          <button 
-            type="button" 
-            onClick={handleAiExtraction} 
-            disabled={isExtracting} 
-            className="group relative bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-4 rounded-2xl font-black flex items-center gap-3 shadow-lg shadow-indigo-200 transition-all active:scale-95 overflow-hidden"
-          >
-            {isExtracting ? (
-              <>
-                <i className="fa-solid fa-sync animate-spin"></i>
-                <span>Processando Super-Busca...</span>
-              </>
-            ) : (
-              <>
-                <i className="fa-solid fa-wand-magic-sparkles group-hover:rotate-12 transition-transform"></i>
-                <span>Super Identificação & Valor (IA)</span>
-              </>
-            )}
-            {isExtracting && <div className="absolute inset-0 bg-white/10 animate-pulse pointer-events-none"></div>}
-          </button>
+          
+          {isExtracting ? (
+            <div className="w-full md:w-80 bg-slate-100 h-14 rounded-2xl overflow-hidden relative flex items-center justify-center border border-slate-200">
+               <div className="absolute inset-y-0 left-0 bg-indigo-600 animate-[loading_2s_infinite]" style={{ width: '40%' }}></div>
+               <span className="relative z-10 text-[11px] font-black text-slate-700 uppercase tracking-widest">IA Analisando...</span>
+            </div>
+          ) : (
+            <button type="button" onClick={handleAiExtraction} className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-4 rounded-2xl font-black flex items-center gap-3 shadow-lg shadow-indigo-200 transition-all active:scale-95">
+              <i className="fa-solid fa-wand-magic-sparkles"></i>
+              <span>Super Identificação (IA)</span>
+            </button>
+          )}
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
           {(['front', 'back', 'detail1', 'detail2'] as const).map(slot => (
@@ -128,8 +113,8 @@ const BanknoteForm: React.FC<BanknoteFormProps> = ({ initialData, onSubmit, onCa
         </h2>
         
         <div className="flex flex-col gap-2">
-          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Identificação da Escolha (Pick)</label>
-          <input name="pickId" value={formData.pickId} onChange={handleChange} placeholder="Ex: P-123a" className="bg-slate-50 p-4 rounded-2xl outline-none border border-slate-100 focus:border-indigo-500 font-bold" />
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Pick ID</label>
+          <input name="pickId" value={formData.pickId} onChange={handleChange} placeholder="P-123" className="bg-slate-50 p-4 rounded-2xl outline-none border border-slate-100 focus:border-indigo-500 font-bold" />
         </div>
 
         <div className="flex flex-col gap-2">
@@ -138,8 +123,15 @@ const BanknoteForm: React.FC<BanknoteFormProps> = ({ initialData, onSubmit, onCa
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Autoridade Emissora</label>
-          <input name="authority" value={formData.authority} onChange={handleChange} className="bg-slate-50 p-4 rounded-2xl outline-none border border-slate-100 focus:border-indigo-500 font-bold" />
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Continente</label>
+          <select name="continent" value={formData.continent} onChange={handleChange} className="bg-slate-50 p-4 rounded-2xl outline-none border border-slate-100 focus:border-indigo-500 font-black">
+            <option value="">Selecione...</option>
+            <option value="África">África</option>
+            <option value="América">América</option>
+            <option value="Ásia">Ásia</option>
+            <option value="Europa">Europa</option>
+            <option value="Oceania">Oceania</option>
+          </select>
         </div>
 
         <div className="flex flex-col gap-2">
@@ -156,91 +148,76 @@ const BanknoteForm: React.FC<BanknoteFormProps> = ({ initialData, onSubmit, onCa
           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Data de Emissão</label>
           <input name="issueDate" value={formData.issueDate} onChange={handleChange} className="bg-slate-50 p-4 rounded-2xl outline-none border border-slate-100 focus:border-indigo-500 font-bold" />
         </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Estampa</label>
+          <input name="stamp" value={formData.stamp} onChange={handleChange} className="bg-slate-50 p-4 rounded-2xl outline-none border border-slate-100 focus:border-indigo-500 font-bold" />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Série Normal</label>
+          <input name="seriesNormal" value={formData.seriesNormal} onChange={handleChange} className="bg-slate-50 p-4 rounded-2xl outline-none border border-slate-100 focus:border-indigo-500 font-bold" />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Série Reposição</label>
+          <input name="seriesReplacement" value={formData.seriesReplacement} onChange={handleChange} className="bg-slate-50 p-4 rounded-2xl outline-none border border-slate-100 focus:border-indigo-500 font-bold" />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ministro(a) Fazenda</label>
+          <input name="minister" value={formData.minister} onChange={handleChange} className="bg-slate-50 p-4 rounded-2xl outline-none border border-slate-100 focus:border-indigo-500 font-bold" />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Presidente BC</label>
+          <input name="president" value={formData.president} onChange={handleChange} className="bg-slate-50 p-4 rounded-2xl outline-none border border-slate-100 focus:border-indigo-500 font-bold" />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Autoridade</label>
+          <input name="authority" value={formData.authority} onChange={handleChange} className="bg-slate-50 p-4 rounded-2xl outline-none border border-slate-100 focus:border-indigo-500 font-bold" />
+        </div>
       </div>
 
-      {/* Especificações Técnicas e Avaliação */}
       <div className="bg-white p-10 rounded-[2.5rem] shadow-xl border border-slate-100 grid grid-cols-1 md:grid-cols-3 gap-8">
         <h2 className="text-2xl font-black text-slate-800 md:col-span-3 mb-4 flex items-center gap-3">
           <i className="fa-solid fa-microscope text-indigo-500"></i>
-          Especificações Técnicas & Avaliação
+          Técnico & Valor
         </h2>
 
         <div className="flex flex-col gap-2">
           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Estado (Grade)</label>
-          <select name="grade" value={formData.grade} onChange={handleChange} className="bg-slate-50 p-4 rounded-2xl outline-none border border-slate-100 focus:border-indigo-500 font-black">
-            <option value="UNC">UNC (Flor de Estampa)</option>
-            <option value="AU">AU (Quase FE)</option>
-            <option value="XF">XF (Soberba)</option>
-            <option value="VF">VF (MBC)</option>
-            <option value="F">F (BC)</option>
-            <option value="VG">VG (Muito Gasta)</option>
-            <option value="G">G (Gasta/Pobre)</option>
-            <option value="SPECIMEN">SPECIMEN</option>
+          <select name="grade" value={formData.grade} onChange={handleChange} className="bg-slate-50 p-4 rounded-2xl outline-none border border-slate-100 font-black">
+            <option value="UNC">UNC</option><option value="AU">AU</option><option value="XF">XF</option>
+            <option value="VF">VF</option><option value="F">F</option><option value="SPECIMEN">SPECIMEN</option>
           </select>
         </div>
 
         <div className="flex flex-col gap-2">
           <div className="flex justify-between items-center mb-1">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor Comercial (€)</label>
-            <button 
-              type="button" 
-              onClick={handleAutoValuation} 
-              disabled={isValuing}
-              className="text-[9px] font-black text-indigo-600 uppercase flex items-center gap-1 hover:text-indigo-800 transition-colors disabled:opacity-50"
-            >
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor (€)</label>
+            <button type="button" onClick={handleAutoValuation} className="text-[9px] font-black text-indigo-600 uppercase flex items-center gap-1">
               {isValuing ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-rotate"></i>}
-              Recalcular Valor
+              Recalcular
             </button>
           </div>
-          <div className="relative group">
-            <input 
-              name="estimatedValue" 
-              type="number" 
-              step="0.01" 
-              value={formData.estimatedValue} 
-              onChange={handleChange} 
-              placeholder="0.00" 
-              className={`w-full bg-emerald-50 p-4 rounded-2xl outline-none border border-emerald-100 focus:border-emerald-500 font-black text-emerald-700 transition-all ${isValuing || isExtracting ? 'opacity-50' : ''}`} 
-            />
-            {(isValuing || isExtracting) && (
-              <div className="absolute inset-0 flex items-center justify-center text-[10px] font-black text-emerald-600 animate-pulse">
-                {isExtracting ? 'IDENTIFICANDO VALOR...' : 'ATUALIZANDO COTAÇÃO...'}
-              </div>
-            )}
-          </div>
+          <input name="estimatedValue" type="number" step="0.01" value={formData.estimatedValue} onChange={handleChange} className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 font-black text-emerald-700" />
         </div>
 
         <div className="flex flex-col gap-2">
           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Material</label>
-          <select name="material" value={formData.material} onChange={handleChange} className="bg-slate-50 p-4 rounded-2xl outline-none border border-slate-100 focus:border-indigo-500 font-bold">
-            <option value="Papel">Papel</option>
-            <option value="Polímero">Polímero</option>
-            <option value="Híbrido">Híbrido</option>
+          <select name="material" value={formData.material} onChange={handleChange} className="bg-slate-50 p-4 rounded-2xl font-bold">
+            <option value="Papel">Papel</option><option value="Polímero">Polímero</option><option value="Híbrido">Híbrido</option>
           </select>
-        </div>
-
-        <div className="md:col-span-1 flex flex-col gap-2">
-          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tamanho (mm)</label>
-          <input name="size" value={formData.size} onChange={handleChange} placeholder="Ex: 140x70" className="bg-slate-50 p-4 rounded-2xl outline-none border border-slate-100 focus:border-indigo-500 font-bold" />
-        </div>
-
-        <div className="md:col-span-2 flex flex-col gap-2">
-          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Detalhes do Conjunto / Série</label>
-          <input name="setDetails" value={formData.setDetails} onChange={handleChange} placeholder="Série identificada automaticamente..." className="bg-slate-50 p-4 rounded-2xl outline-none border border-slate-100 focus:border-indigo-500 font-bold" />
-        </div>
-
-        <div className="md:col-span-3 flex flex-col gap-2">
-          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Comentários & Notas Históricas (Auto)</label>
-          <textarea name="comments" value={formData.comments} onChange={handleChange} rows={3} placeholder="A IA preencherá curiosidades aqui..." className="bg-slate-50 p-4 rounded-2xl outline-none border border-slate-100 focus:border-indigo-500 font-medium" />
         </div>
       </div>
 
-      {/* Ações Inferiores */}
       <div className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-2xl p-6 flex justify-center gap-6 z-50 border-t border-slate-200">
         <button type="button" onClick={onCancel} className="px-10 py-4 text-slate-500 font-black hover:bg-slate-100 rounded-2xl transition-all">Descartar</button>
-        <button type="submit" className="px-16 py-4 bg-slate-900 text-white rounded-2xl font-black shadow-2xl shadow-slate-300 hover:bg-indigo-600 transition-all transform active:scale-95 flex items-center gap-3">
+        <button type="submit" className="px-16 py-4 bg-slate-900 text-white rounded-2xl font-black shadow-2xl hover:bg-indigo-600 transition-all flex items-center gap-3">
           <i className="fa-solid fa-cloud-arrow-up"></i>
-          Salvar no Banco de Dados
+          Salvar Registro
         </button>
       </div>
     </form>

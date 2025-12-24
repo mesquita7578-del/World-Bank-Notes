@@ -5,10 +5,19 @@ import BanknoteForm from './components/BanknoteForm';
 import ImageGalleryModal from './components/ImageGalleryModal';
 import { dbService } from './services/db';
 
+const CONTINENTS = [
+  { name: 'África', icon: 'fa-solid fa-earth-africa' },
+  { name: 'América', icon: 'fa-solid fa-earth-americas' },
+  { name: 'Ásia', icon: 'fa-solid fa-earth-asia' },
+  { name: 'Europa', icon: 'fa-solid fa-earth-europe' },
+  { name: 'Oceania', icon: 'fa-solid fa-earth-oceania' }
+];
+
 const App: React.FC = () => {
   const [notes, setNotes] = useState<Banknote[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [selectedContinent, setSelectedContinent] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<'date' | 'country' | 'val'>('date');
   const [filterMaterial, setFilterMaterial] = useState('Todos');
   const [filterGrade, setFilterGrade] = useState('Todos');
@@ -16,7 +25,6 @@ const App: React.FC = () => {
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [viewGalleryNoteId, setViewGalleryNoteId] = useState<string | null>(null);
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   
   const fileImportRef = useRef<HTMLInputElement>(null);
@@ -34,22 +42,7 @@ const App: React.FC = () => {
       }
     };
     initDB();
-
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    });
   }, []);
-
-  const handleInstallClick = async () => {
-    if (!deferredPrompt) {
-      alert("Para instalar no PC:\n1. Use Chrome/Edge\n2. Clique em 'Instalar' na barra de endereços.");
-      return;
-    }
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') setDeferredPrompt(null);
-  };
 
   const filteredNotes = useMemo(() => {
     let result = notes.filter(n => {
@@ -59,8 +52,9 @@ const App: React.FC = () => {
                           (n.denomination || '').toLowerCase().includes(search.toLowerCase());
       const matchMaterial = filterMaterial === 'Todos' || n.material === filterMaterial;
       const matchGrade = filterGrade === 'Todos' || n.grade === filterGrade;
+      const matchContinent = !selectedContinent || n.continent === selectedContinent;
       
-      return matchSearch && matchMaterial && matchGrade;
+      return matchSearch && matchMaterial && matchGrade && matchContinent;
     });
 
     if (sortBy === 'country') result.sort((a, b) => (a.country || '').localeCompare(b.country || ''));
@@ -68,22 +62,13 @@ const App: React.FC = () => {
     else result.sort((a, b) => b.createdAt - a.createdAt);
 
     return result;
-  }, [notes, search, sortBy, filterMaterial, filterGrade]);
+  }, [notes, search, sortBy, filterMaterial, filterGrade, selectedContinent]);
 
   const stats = useMemo(() => {
-    let totalImages = 0;
-    notes.forEach(n => {
-      if (n.images.front) totalImages++;
-      if (n.images.back) totalImages++;
-      if (n.images.detail1) totalImages++;
-      if (n.images.detail2) totalImages++;
-    });
-
     return {
       total: notes.length,
       countries: new Set(notes.map(n => n.country)).size,
-      value: notes.reduce((acc, n) => acc + (parseFloat(n.estimatedValue) || 0), 0),
-      images: totalImages
+      value: notes.reduce((acc, n) => acc + (parseFloat(n.estimatedValue) || 0), 0)
     };
   }, [notes]);
 
@@ -123,190 +108,185 @@ const App: React.FC = () => {
     reader.onload = async (event) => {
       try {
         const json = JSON.parse(event.target?.result as string);
-        if (Array.isArray(json) && window.confirm('Deseja importar estes registros?')) {
-          for (const note of json) {
-            await dbService.save(note);
-          }
+        if (Array.isArray(json)) {
+          for (const note of json) await dbService.save(note);
           const all = await dbService.getAll();
           setNotes(all);
         }
-      } catch (err) { alert('Erro no arquivo de importação.'); }
+      } catch (err) { alert('Erro no arquivo.'); }
     };
     reader.readAsText(file);
   };
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
-      <div className="flex flex-col items-center gap-4">
-        <i className="fa-solid fa-vault text-5xl animate-bounce text-indigo-500"></i>
-        <p className="font-black tracking-widest text-sm">SINCRONIZANDO BASE DE DADOS PRO...</p>
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
+        <div className="flex flex-col items-center gap-4">
+          <i className="fa-solid fa-vault text-6xl animate-bounce text-indigo-500"></i>
+          <p className="font-black tracking-[0.3em] text-[10px] uppercase">Sincronizando Arquivos Globais...</p>
+        </div>
       </div>
-    </div>;
+    );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-24 print:bg-white print:pb-0">
-      <header className="sticky top-0 z-40 bg-[#0f172a] text-white shadow-2xl px-6 py-4 print:hidden">
-        <div className="max-w-7xl mx-auto flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div className="bg-indigo-600 p-2.5 rounded-xl shadow-inner shadow-indigo-400/20">
-              <i className="fa-solid fa-vault text-2xl"></i>
-            </div>
-            <div>
-              <h1 className="text-xl font-black tracking-tight leading-none">NUMIS-ARCHIVE</h1>
-              <p className="text-[10px] text-indigo-400 font-bold uppercase tracking-[0.2em] mt-1">PRO Database v2 (IndexedDB)</p>
-            </div>
+    <div className="flex min-h-screen bg-slate-50 print:bg-white">
+      {/* Sidebar de Continentes */}
+      <aside className="hidden lg:flex flex-col w-72 bg-[#0f172a] text-white fixed h-full z-50 border-r border-slate-800 shadow-2xl">
+        <div className="p-8 border-b border-slate-800">
+          <div className="flex items-center gap-4 mb-2">
+            <div className="bg-indigo-600 p-2 rounded-lg"><i className="fa-solid fa-globe text-xl"></i></div>
+            <h1 className="text-xl font-black tracking-tighter">NUMIS-WORLD</h1>
           </div>
+          <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">Global Archive Database</p>
+        </div>
 
-          <div className="flex-1 max-w-xl">
-            <div className="relative group">
-              <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
-              <input 
-                type="text" 
-                placeholder="Pesquisar acervo..." 
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full bg-slate-800/50 border border-slate-700 text-slate-100 rounded-xl py-3 pl-12 pr-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-slate-600"
-              />
-            </div>
-          </div>
+        <nav className="flex-1 p-6 space-y-2 overflow-y-auto">
+          <button 
+            onClick={() => setSelectedContinent(null)}
+            className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-black transition-all ${!selectedContinent ? 'bg-indigo-600 shadow-lg shadow-indigo-900/40 text-white scale-105' : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'}`}
+          >
+            <i className="fa-solid fa-border-all text-lg"></i>
+            <span className="text-xs uppercase tracking-widest">Todos os Países</span>
+          </button>
 
-          <div className="flex items-center gap-2">
-            <button onClick={() => setShowDiagnostics(!showDiagnostics)} className="p-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl border border-slate-700" title="Verificar Integridade">
-              <i className="fa-solid fa-stethoscope"></i>
+          <div className="h-4"></div>
+          <h3 className="text-[9px] font-black text-slate-500 uppercase px-6 mb-2 tracking-[0.2em]">Por Continente</h3>
+
+          {CONTINENTS.map(cont => (
+            <button 
+              key={cont.name}
+              onClick={() => setSelectedContinent(cont.name)}
+              className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-black transition-all ${selectedContinent === cont.name ? 'bg-indigo-600 shadow-lg shadow-indigo-900/40 text-white scale-105' : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'}`}
+            >
+              <i className={`${cont.icon} text-lg`}></i>
+              <span className="text-xs uppercase tracking-widest">{cont.name}</span>
+              <div className="ml-auto bg-slate-800 px-2 py-0.5 rounded-full text-[8px]">
+                {notes.filter(n => n.continent === cont.name).length}
+              </div>
             </button>
-            <button onClick={handleInstallClick} className="flex items-center gap-2 px-4 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-xs transition-all shadow-lg shadow-emerald-900/20">
-              <i className="fa-solid fa-laptop-arrow-down"></i>
-              App Desktop
-            </button>
-            <div className="h-8 w-[1px] bg-slate-700 mx-1"></div>
-            <button onClick={handleExport} title="Exportar Backup" className="p-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl border border-slate-700"><i className="fa-solid fa-download"></i></button>
-            <button onClick={() => fileImportRef.current?.click()} title="Importar Backup" className="p-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl border border-slate-700"><i className="fa-solid fa-upload"></i></button>
-            <input type="file" ref={fileImportRef} className="hidden" accept=".json" onChange={handleImport} />
-            <button onClick={() => setIsAdding(true)} className="bg-indigo-500 hover:bg-indigo-600 text-white font-black px-6 py-3 rounded-xl shadow-lg flex items-center gap-2 transition-transform active:scale-95">
-              <i className="fa-solid fa-plus-circle"></i> Novo Registro
-            </button>
+          ))}
+        </nav>
+
+        <div className="p-6 border-t border-slate-800">
+          <div className="bg-slate-800/50 p-4 rounded-2xl">
+            <p className="text-[8px] font-black text-slate-500 uppercase mb-2">Total do Acervo</p>
+            <p className="text-lg font-black text-indigo-400">{stats.value.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}</p>
           </div>
         </div>
-      </header>
+      </aside>
 
-      {showDiagnostics && (
-        <div className="bg-indigo-900 text-white p-6 border-b border-indigo-800 animate-in slide-in-from-top duration-300">
-          <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
-            <div className="flex items-center gap-6">
-               <div className="flex flex-col">
-                  <span className="text-[10px] font-black uppercase text-indigo-300">Capacidade de Imagens</span>
-                  <div className="flex items-center gap-3">
-                     <div className="h-2 w-48 bg-indigo-950 rounded-full overflow-hidden">
-                        <div className="h-full bg-emerald-400" style={{ width: `${Math.min(100, (stats.images / 10000) * 100)}%` }}></div>
-                     </div>
-                     <span className="text-xs font-bold">{stats.images.toLocaleString()} / 10.000+</span>
-                  </div>
-               </div>
-               <div className="h-10 w-[1px] bg-indigo-800"></div>
-               <div>
-                  <span className="text-[10px] font-black uppercase text-indigo-300">Estado da Base</span>
-                  <p className="text-xs font-bold text-emerald-400 flex items-center gap-2">
-                    <i className="fa-solid fa-circle-check"></i> IndexedDB Otimizado
-                  </p>
-               </div>
+      {/* Main Content Area */}
+      <main className="flex-1 lg:ml-72 flex flex-col pb-24">
+        {/* Header Superior */}
+        <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-slate-200 px-8 py-4 print:hidden">
+          <div className="max-w-7xl mx-auto flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div className="flex-1 max-w-xl">
+              <div className="relative group">
+                <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                <input 
+                  type="text" 
+                  placeholder="Pesquisar por país, moeda ou pick..." 
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full bg-slate-100 border-none rounded-2xl py-3.5 pl-12 pr-4 focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-slate-800"
+                />
+              </div>
             </div>
-            <button onClick={() => setShowDiagnostics(false)} className="text-indigo-300 hover:text-white"><i className="fa-solid fa-xmark"></i></button>
+
+            <div className="flex items-center gap-3">
+              <button onClick={handleExport} className="p-3.5 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50" title="Exportar"><i className="fa-solid fa-download"></i></button>
+              <button onClick={() => fileImportRef.current?.click()} className="p-3.5 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50" title="Importar"><i className="fa-solid fa-upload"></i></button>
+              <input type="file" ref={fileImportRef} className="hidden" accept=".json" onChange={handleImport} />
+              
+              <button onClick={() => setIsAdding(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-8 py-3.5 rounded-2xl shadow-xl shadow-indigo-100 flex items-center gap-3 transition-all active:scale-95">
+                <i className="fa-solid fa-plus-circle"></i> Novo Item
+              </button>
+            </div>
           </div>
+        </header>
+
+        {/* Listagem de Continentes Horizontal para Mobile */}
+        <div className="lg:hidden flex overflow-x-auto p-4 gap-3 bg-white border-b border-slate-200 no-scrollbar">
+          <button onClick={() => setSelectedContinent(null)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase whitespace-nowrap ${!selectedContinent ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'}`}>Todos</button>
+          {CONTINENTS.map(c => (
+            <button key={c.name} onClick={() => setSelectedContinent(c.name)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase whitespace-nowrap ${selectedContinent === c.name ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
+              {c.name}
+            </button>
+          ))}
         </div>
-      )}
 
-      {!isAdding && !editingId && (
-        <div className="max-w-7xl mx-auto px-6 mt-6 print:hidden">
-          <div className="flex flex-wrap items-center justify-between gap-6 mb-8">
-            <div className="flex gap-4">
-              <div className="bg-white p-4 pr-12 rounded-2xl border border-slate-200 shadow-sm">
-                <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">Cédulas</p>
-                <p className="text-2xl font-black text-slate-800 leading-none">{stats.total}</p>
+        {/* Grid de Cédulas */}
+        {!isAdding && !editingId && (
+          <div className="max-w-7xl mx-auto px-8 mt-8 w-full">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h2 className="text-3xl font-black text-slate-900 tracking-tighter">
+                  {selectedContinent || 'Acervo Global'}
+                </h2>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1">
+                  Exibindo {filteredNotes.length} de {notes.length} cédulas registradas
+                </p>
               </div>
-              <div className="bg-white p-4 pr-12 rounded-2xl border border-slate-200 shadow-sm">
-                <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">Países</p>
-                <p className="text-2xl font-black text-slate-800 leading-none">{stats.countries}</p>
-              </div>
-              <div className="bg-indigo-50 p-4 pr-12 rounded-2xl border border-indigo-100 shadow-sm">
-                <p className="text-indigo-400 text-[10px] font-black uppercase tracking-widest mb-1">Valor Total</p>
-                <p className="text-2xl font-black text-indigo-700 leading-none">{stats.value.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}</p>
-              </div>
-            </div>
 
-            <div className="flex flex-wrap items-center gap-4 bg-white p-2 rounded-2xl border border-slate-200 shadow-sm">
-              <div className="flex flex-col px-3">
-                <label className="text-[9px] font-black text-slate-400 uppercase mb-1">Ordenar</label>
-                <select value={sortBy} onChange={(e) => setSortBy(e.target.value as any)} className="text-xs font-bold text-slate-700 outline-none bg-transparent">
-                  <option value="date">Data de Inclusão</option>
-                  <option value="country">País (A-Z)</option>
-                  <option value="val">Valor Nominal</option>
-                </select>
-              </div>
-              <div className="h-8 w-[1px] bg-slate-100"></div>
-              <div className="flex flex-col px-3">
-                <label className="text-[9px] font-black text-slate-400 uppercase mb-1">Material</label>
-                <select value={filterMaterial} onChange={(e) => setFilterMaterial(e.target.value)} className="text-xs font-bold text-slate-700 outline-none bg-transparent">
-                  <option value="Todos">Todos</option>
-                  <option value="Papel">Papel</option>
-                  <option value="Polímero">Polímero</option>
-                  <option value="Híbrido">Híbrido</option>
-                </select>
-              </div>
-              <div className="h-8 w-[1px] bg-slate-100"></div>
-              <div className="flex flex-col px-3">
-                <label className="text-[9px] font-black text-slate-400 uppercase mb-1">Conservação</label>
-                <select value={filterGrade} onChange={(e) => setFilterGrade(e.target.value)} className="text-xs font-bold text-slate-700 outline-none bg-transparent">
-                  <option value="Todos">Todos</option>
-                  <option value="UNC">UNC (FE)</option>
-                  <option value="AU">AU (Quase FE)</option>
-                  <option value="XF">XF (Soberba)</option>
-                  <option value="VF">VF (MBC)</option>
-                  <option value="F">F (BC)</option>
-                  <option value="SPECIMEN">SPECIMEN</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-5">
-            {filteredNotes.map(note => (
-              <div key={note.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-2xl hover:-translate-y-1.5 transition-all group overflow-hidden flex flex-col cursor-pointer" onClick={() => setViewGalleryNoteId(note.id)}>
-                <div className="aspect-[1.6/1] bg-slate-100 relative overflow-hidden">
-                  {note.images.front ? <img src={note.images.front} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" /> : <div className="flex items-center justify-center h-full text-slate-200"><i className="fa-solid fa-panorama text-4xl"></i></div>}
-                  <div className="absolute top-2 right-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0">
-                    <button onClick={(e) => { e.stopPropagation(); setEditingId(note.id); setIsAdding(true); }} className="w-8 h-8 bg-white text-indigo-600 rounded-xl flex items-center justify-center shadow-lg hover:bg-indigo-600 hover:text-white transition-all"><i className="fa-solid fa-pen text-xs"></i></button>
-                    <button onClick={(e) => { e.stopPropagation(); handleDelete(note.id); }} className="w-8 h-8 bg-white text-rose-600 rounded-xl flex items-center justify-center shadow-lg hover:bg-rose-600 hover:text-white transition-all"><i className="fa-solid fa-trash text-xs"></i></button>
-                  </div>
-                  <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/50 backdrop-blur-md rounded-lg text-[9px] text-white font-black z-10 border border-white/10">{note.pickId || 'S/ID'}</div>
-                  {note.grade && <div className="absolute top-2 left-2 px-2 py-1 bg-indigo-600 text-white rounded-lg text-[9px] font-black z-10 shadow-lg border border-indigo-400/30">{note.grade}</div>}
-                </div>
-                <div className="p-4 flex-1">
-                  <div className="text-[9px] text-indigo-500 font-black uppercase mb-1 flex items-center gap-1">
-                    <i className="fa-solid fa-location-dot scale-75"></i>
-                    {note.country}
-                  </div>
-                  <h3 className="text-base font-black text-slate-800 leading-none mb-1 truncate">{note.denomination} {note.currency}</h3>
-                  <div className="flex justify-between items-end mt-3">
-                    <p className="text-[10px] text-slate-400 font-bold">{note.issueDate || 'S/Data'}</p>
-                    <p className="text-xs font-black text-emerald-600">{(parseFloat(note.estimatedValue) || 0).toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}</p>
-                  </div>
+              <div className="flex items-center gap-4 bg-white p-2 rounded-2xl border border-slate-200 shadow-sm">
+                <div className="flex flex-col px-3">
+                  <label className="text-[8px] font-black text-slate-400 uppercase">Ordem</label>
+                  <select value={sortBy} onChange={(e) => setSortBy(e.target.value as any)} className="text-[10px] font-black text-slate-700 outline-none bg-transparent uppercase">
+                    <option value="date">Recentes</option><option value="country">País</option><option value="val">Valor</option>
+                  </select>
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+            </div>
 
-      {(isAdding || editingId) && (
-        <div className="max-w-4xl mx-auto px-6 mt-10">
-           <BanknoteForm 
-            initialData={editingId ? notes.find(n => n.id === editingId) : undefined} 
-            onSubmit={handleAddOrEdit} 
-            onCancel={() => { setIsAdding(false); setEditingId(null); }} 
-           />
-        </div>
-      )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+              {filteredNotes.map(note => (
+                <div 
+                  key={note.id} 
+                  onClick={() => setViewGalleryNoteId(note.id)}
+                  className="bg-white rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all group overflow-hidden cursor-pointer"
+                >
+                  <div className="aspect-[1.5/1] bg-slate-50 relative">
+                    {note.images.front ? (
+                      <img src={note.images.front} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-slate-200"><i className="fa-solid fa-panorama text-4xl"></i></div>
+                    )}
+                    <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                      <button onClick={(e) => { e.stopPropagation(); setEditingId(note.id); setIsAdding(true); }} className="w-10 h-10 bg-white/90 backdrop-blur text-indigo-600 rounded-xl flex items-center justify-center shadow-lg hover:bg-indigo-600 hover:text-white transition-all"><i className="fa-solid fa-pen text-sm"></i></button>
+                      <button onClick={(e) => { e.stopPropagation(); handleDelete(note.id); }} className="w-10 h-10 bg-white/90 backdrop-blur text-rose-600 rounded-xl flex items-center justify-center shadow-lg hover:bg-rose-600 hover:text-white transition-all"><i className="fa-solid fa-trash text-sm"></i></button>
+                    </div>
+                    <div className="absolute top-4 left-4">
+                      <div className="px-3 py-1 bg-black/40 backdrop-blur-md rounded-full text-[9px] text-white font-black border border-white/20">{note.pickId || 'S/ID'}</div>
+                    </div>
+                  </div>
+                  <div className="p-6">
+                    <div className="flex items-center justify-between mb-2">
+                       <div className="text-[9px] text-indigo-500 font-black uppercase tracking-widest">{note.country}</div>
+                       <div className="text-[9px] text-slate-400 font-bold">{note.grade}</div>
+                    </div>
+                    <h3 className="text-xl font-black text-slate-900 mb-4 truncate">{note.denomination} {note.currency}</h3>
+                    <div className="flex justify-between items-center pt-4 border-t border-slate-50">
+                      <span className="text-[10px] font-bold text-slate-400">{note.issueDate}</span>
+                      <span className="text-sm font-black text-emerald-600">{(parseFloat(note.estimatedValue) || 0).toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {(isAdding || editingId) && (
+          <div className="max-w-4xl mx-auto px-8 mt-12 w-full">
+            <BanknoteForm 
+              initialData={editingId ? notes.find(n => n.id === editingId) : undefined} 
+              onSubmit={handleAddOrEdit} 
+              onCancel={() => { setIsAdding(false); setEditingId(null); }} 
+            />
+          </div>
+        )}
+      </main>
 
       {viewGalleryNoteId && (
         <ImageGalleryModal 

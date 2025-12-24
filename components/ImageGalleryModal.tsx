@@ -96,14 +96,22 @@ const ImageGalleryModal: React.FC<ImageGalleryModalProps> = ({ note, onClose, on
         </div>
         
         <div className="flex items-center gap-3">
-          <button 
-            onClick={handleResearch} 
-            disabled={isSearching} 
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-xs font-bold flex items-center gap-2 transition-colors disabled:opacity-50"
-          >
-            {isSearching ? <i className="fa-solid fa-circle-notch animate-spin"></i> : <i className="fa-solid fa-wand-sparkles"></i>}
-            Análise Histórica (IA)
-          </button>
+          {isSearching ? (
+            <div className="w-48 bg-white/5 h-10 rounded-xl overflow-hidden relative flex items-center justify-center border border-white/10">
+               <div className="absolute inset-y-0 left-0 bg-indigo-500 animate-[loading_2s_infinite]" style={{ width: '30%' }}></div>
+               <span className="relative z-10 text-[9px] font-black uppercase tracking-widest text-white animate-pulse">
+                 IA Pesquisando...
+               </span>
+            </div>
+          ) : (
+            <button 
+              onClick={handleResearch} 
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-xs font-bold flex items-center gap-2 transition-colors"
+            >
+              <i className="fa-solid fa-wand-sparkles"></i>
+              Análise Histórica (IA)
+            </button>
+          )}
           <button onClick={() => window.print()} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 transition-colors" title="Imprimir Ficha">
             <i className="fa-solid fa-print"></i>
           </button>
@@ -212,6 +220,15 @@ const ImageGalleryModal: React.FC<ImageGalleryModalProps> = ({ note, onClose, on
               <InfoItem label="Pick ID" value={note.pickId} />
               <InfoItem label="Estado (Grade)" value={note.grade} />
               <InfoItem label="Material" value={note.material} />
+              <InfoItem label="Estampa" value={note.stamp} />
+              <InfoItem label="Série Normal" value={note.seriesNormal} />
+              <InfoItem label="Série Reposição" value={note.seriesReplacement} />
+              <div className="col-span-2">
+                <InfoItem label="Ministro(a) Fazenda" value={note.minister} />
+              </div>
+              <div className="col-span-2">
+                <InfoItem label="Presidente BC" value={note.president} />
+              </div>
               <InfoItem label="Tamanho" value={note.size} />
               <div className="col-span-2">
                 <InfoItem label="Autoridade Emissora" value={note.authority} />
@@ -239,9 +256,16 @@ const ImageGalleryModal: React.FC<ImageGalleryModalProps> = ({ note, onClose, on
             
             {!historyInfo ? (
               <div className="text-center py-8">
-                <p className="text-xs text-slate-500 leading-relaxed italic">
-                  Utilize o botão "Análise Histórica" no topo para pesquisar curiosidades e fatos sobre esta cédula via IA.
-                </p>
+                {isSearching ? (
+                   <div className="flex flex-col items-center gap-4">
+                      <div className="w-12 h-12 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
+                      <p className="text-[10px] font-black uppercase text-indigo-400 animate-pulse tracking-widest">IA Conectando a Base Histórica...</p>
+                   </div>
+                ) : (
+                  <p className="text-xs text-slate-500 leading-relaxed italic">
+                    Utilize o botão "Análise Histórica" no topo para pesquisar curiosidades e fatos sobre esta cédula via IA.
+                  </p>
+                )}
               </div>
             ) : (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -285,6 +309,8 @@ const ImageGalleryModal: React.FC<ImageGalleryModalProps> = ({ note, onClose, on
                   <div><p className="font-black uppercase text-[10px] text-slate-400 mb-1">Material</p><p className="text-xl font-bold">{note.material}</p></div>
                   <div><p className="font-black uppercase text-[10px] text-slate-400 mb-1">Conservação</p><p className="text-xl font-bold">{note.grade}</p></div>
                   <div className="col-span-2"><p className="font-black uppercase text-[10px] text-slate-400 mb-1">Autoridade</p><p className="text-lg font-bold">{note.authority || '---'}</p></div>
+                  <div><p className="font-black uppercase text-[10px] text-slate-400 mb-1">Estampa</p><p className="text-lg font-bold">{note.stamp || '---'}</p></div>
+                  <div><p className="font-black uppercase text-[10px] text-slate-400 mb-1">Série</p><p className="text-lg font-bold">{note.seriesNormal || note.seriesReplacement || '---'}</p></div>
                 </div>
               </div>
               <div className="bg-slate-50 p-8 rounded-3xl border border-slate-100 flex flex-col justify-between">

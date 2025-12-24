@@ -3,6 +3,7 @@ export interface Banknote {
   id: string;
   pickId: string;
   country: string;
+  continent?: string; // Novo campo para filtragem
   authority: string;
   currency: string;
   denomination: string;
@@ -14,8 +15,13 @@ export interface Banknote {
   material: string;
   size: string;
   grade: string;
-  estimatedValue: string; // Novo: Valor de mercado/estimado
+  estimatedValue: string;
   comments: string;
+  minister?: string;
+  president?: string;
+  stamp?: string;
+  seriesNormal?: string;
+  seriesReplacement?: string;
   images: {
     front?: string;
     back?: string;
