@@ -48,15 +48,22 @@ const App: React.FC = () => {
 
     // Listen for PWA install prompt
     window.addEventListener('beforeinstallprompt', (e) => {
+      console.log('Detectado suporte para instalação!');
       e.preventDefault();
       setDeferredPrompt(e);
       setShowInstallBtn(true);
     });
 
     window.addEventListener('appinstalled', () => {
+      console.log('App instalado com sucesso!');
       setShowInstallBtn(false);
       setDeferredPrompt(null);
     });
+
+    // Check if already in standalone mode
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      setShowInstallBtn(false);
+    }
   }, []);
 
   const handleInstallApp = async () => {
@@ -202,6 +209,28 @@ const App: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-slate-50 print:bg-white">
+      {/* Barra Fixa de Instalação (Somente se disponível) */}
+      {showInstallBtn && (
+        <div className="fixed top-0 left-0 right-0 z-[100] bg-indigo-600 text-white px-6 py-2.5 flex items-center justify-between shadow-2xl animate-in slide-in-from-top duration-500 print:hidden">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+              <i className="fa-solid fa-laptop-code text-lg"></i>
+            </div>
+            <div>
+              <p className="text-xs font-black uppercase tracking-widest">Instalação Disponível</p>
+              <p className="text-[10px] opacity-80">Use o Numis-Archive como um App nativo no seu Windows/PC.</p>
+            </div>
+          </div>
+          <button 
+            onClick={handleInstallApp}
+            className="bg-white text-indigo-600 px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-indigo-50 transition-all shadow-lg animate-pulse-slow"
+          >
+            <i className="fa-solid fa-download mr-2"></i>
+            Descarregar App para PC
+          </button>
+        </div>
+      )}
+
       {/* Sidebar de Continentes */}
       <aside className="hidden lg:flex flex-col w-72 bg-[#0f172a] text-white fixed h-full z-50 border-r border-slate-800 shadow-2xl">
         <div className="p-8 border-b border-slate-800">
@@ -248,20 +277,11 @@ const App: React.FC = () => {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 lg:ml-72 flex flex-col pb-24">
+      <main className={`flex-1 lg:ml-72 flex flex-col pb-24 transition-all ${showInstallBtn ? 'mt-16' : ''}`}>
         {/* Header Superior */}
         <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-slate-200 px-8 py-4 print:hidden">
           <div className="max-w-7xl mx-auto flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="flex-1 max-w-xl flex items-center gap-4">
-              {showInstallBtn && (
-                <button 
-                  onClick={handleInstallApp}
-                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-200 animate-pulse hover:scale-105 transition-transform shrink-0"
-                >
-                  <i className="fa-solid fa-display-arrow-down"></i>
-                  Descarregar App para PC
-                </button>
-              )}
               <div className="relative group w-full">
                 <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
                 <input 
