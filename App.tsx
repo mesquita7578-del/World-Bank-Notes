@@ -6,11 +6,11 @@ import ImageGalleryModal from './components/ImageGalleryModal';
 import { dbService } from './services/db';
 
 const CONTINENTS = [
-  { name: 'África', icon: 'fa-solid fa-earth-africa' },
-  { name: 'América', icon: 'fa-solid fa-earth-americas' },
-  { name: 'Ásia', icon: 'fa-solid fa-earth-asia' },
-  { name: 'Europa', icon: 'fa-solid fa-earth-europe' },
-  { name: 'Oceania', icon: 'fa-solid fa-earth-oceania' }
+  { name: 'África', icon: 'fa-solid fa-earth-africa', color: '#f59e0b' },
+  { name: 'América', icon: 'fa-solid fa-earth-americas', color: '#10b981' },
+  { name: 'Ásia', icon: 'fa-solid fa-earth-asia', color: '#ef4444' },
+  { name: 'Europa', icon: 'fa-solid fa-earth-europe', color: '#3b82f6' },
+  { name: 'Oceania', icon: 'fa-solid fa-earth-oceania', color: '#8b5cf6' }
 ];
 
 const App: React.FC = () => {
@@ -25,8 +25,11 @@ const App: React.FC = () => {
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [viewGalleryNoteId, setViewGalleryNoteId] = useState<string | null>(null);
-  const [showDiagnostics, setShowDiagnostics] = useState(false);
   
+  // PWA Installation State
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showInstallBtn, setShowInstallBtn] = useState(false);
+
   const fileImportRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -42,7 +45,49 @@ const App: React.FC = () => {
       }
     };
     initDB();
+
+    // Listen for PWA install prompt
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setShowInstallBtn(true);
+    });
+
+    window.addEventListener('appinstalled', () => {
+      setShowInstallBtn(false);
+      setDeferredPrompt(null);
+    });
   }, []);
+
+  const handleInstallApp = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setShowInstallBtn(false);
+    }
+    setDeferredPrompt(null);
+  };
+
+  const stats = useMemo(() => {
+    const totalValue = notes.reduce((acc, n) => acc + (parseFloat(n.estimatedValue) || 0), 0);
+    const countrySet = new Set(notes.map(n => n.country));
+    
+    const distribution = CONTINENTS.map(c => ({
+      ...c,
+      count: notes.filter(n => n.continent === c.name).length,
+      percentage: notes.length > 0 
+        ? (notes.filter(n => n.continent === c.name).length / notes.length) * 100 
+        : 0
+    }));
+
+    return {
+      total: notes.length,
+      countries: countrySet.size,
+      value: totalValue,
+      distribution
+    };
+  }, [notes]);
 
   const filteredNotes = useMemo(() => {
     let result = notes.filter(n => {
@@ -63,14 +108,6 @@ const App: React.FC = () => {
 
     return result;
   }, [notes, search, sortBy, filterMaterial, filterGrade, selectedContinent]);
-
-  const stats = useMemo(() => {
-    return {
-      total: notes.length,
-      countries: new Set(notes.map(n => n.country)).size,
-      value: notes.reduce((acc, n) => acc + (parseFloat(n.estimatedValue) || 0), 0)
-    };
-  }, [notes]);
 
   const handleAddOrEdit = async (note: Banknote) => {
     await dbService.save(note);
@@ -116,6 +153,40 @@ const App: React.FC = () => {
       } catch (err) { alert('Erro no arquivo.'); }
     };
     reader.readAsText(file);
+  };
+
+  const renderPieChart = () => {
+    let cumulativePercent = 0;
+    
+    return (
+      <svg viewBox="0 0 32 32" className="w-48 h-48 transform -rotate-90 drop-shadow-xl">
+        {stats.distribution.map((segment, index) => {
+          if (segment.percentage === 0) return null;
+          const startX = Math.cos(2 * Math.PI * cumulativePercent);
+          const startY = Math.sin(2 * Math.PI * cumulativePercent);
+          cumulativePercent += segment.percentage / 100;
+          const endX = Math.cos(2 * Math.PI * cumulativePercent);
+          const endY = Math.sin(2 * Math.PI * cumulativePercent);
+          const largeArcFlag = segment.percentage > 50 ? 1 : 0;
+          const pathData = [
+            `M 16 16`,
+            `L ${16 + 16 * startX} ${16 + 16 * startY}`,
+            `A 16 16 0 ${largeArcFlag} 1 ${16 + 16 * endX} ${16 + 16 * endY}`,
+            `Z`
+          ].join(' ');
+          return (
+            <path 
+              key={segment.name} 
+              d={pathData} 
+              fill={segment.color} 
+              className="hover:opacity-80 transition-opacity cursor-pointer"
+              onClick={() => setSelectedContinent(segment.name)}
+            />
+          );
+        })}
+        <circle cx="16" cy="16" r="10" fill="white" />
+      </svg>
+    );
   };
 
   if (loading) {
@@ -181,44 +252,105 @@ const App: React.FC = () => {
         {/* Header Superior */}
         <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-slate-200 px-8 py-4 print:hidden">
           <div className="max-w-7xl mx-auto flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-            <div className="flex-1 max-w-xl">
-              <div className="relative group">
+            <div className="flex-1 max-w-xl flex items-center gap-4">
+              {showInstallBtn && (
+                <button 
+                  onClick={handleInstallApp}
+                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-200 animate-pulse hover:scale-105 transition-transform shrink-0"
+                >
+                  <i className="fa-solid fa-display-arrow-down"></i>
+                  Descarregar App para PC
+                </button>
+              )}
+              <div className="relative group w-full">
                 <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
                 <input 
                   type="text" 
-                  placeholder="Pesquisar por país, moeda ou pick..." 
+                  placeholder="Pesquisar registro..." 
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full bg-slate-100 border-none rounded-2xl py-3.5 pl-12 pr-4 focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-slate-800"
+                  className="w-full bg-slate-100 border-none rounded-2xl py-3 pl-12 pr-4 focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-slate-800"
                 />
               </div>
             </div>
 
             <div className="flex items-center gap-3">
-              <button onClick={handleExport} className="p-3.5 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50" title="Exportar"><i className="fa-solid fa-download"></i></button>
-              <button onClick={() => fileImportRef.current?.click()} className="p-3.5 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50" title="Importar"><i className="fa-solid fa-upload"></i></button>
+              <button onClick={handleExport} className="p-3 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50" title="Exportar"><i className="fa-solid fa-download"></i></button>
+              <button onClick={() => fileImportRef.current?.click()} className="p-3 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50" title="Importar"><i className="fa-solid fa-upload"></i></button>
               <input type="file" ref={fileImportRef} className="hidden" accept=".json" onChange={handleImport} />
               
-              <button onClick={() => setIsAdding(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-8 py-3.5 rounded-2xl shadow-xl shadow-indigo-100 flex items-center gap-3 transition-all active:scale-95">
+              <button onClick={() => setIsAdding(true)} className="bg-slate-900 hover:bg-slate-800 text-white font-black px-6 py-3 rounded-2xl shadow-xl flex items-center gap-3 transition-all active:scale-95">
                 <i className="fa-solid fa-plus-circle"></i> Novo Item
               </button>
             </div>
           </div>
         </header>
 
-        {/* Listagem de Continentes Horizontal para Mobile */}
-        <div className="lg:hidden flex overflow-x-auto p-4 gap-3 bg-white border-b border-slate-200 no-scrollbar">
-          <button onClick={() => setSelectedContinent(null)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase whitespace-nowrap ${!selectedContinent ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'}`}>Todos</button>
-          {CONTINENTS.map(c => (
-            <button key={c.name} onClick={() => setSelectedContinent(c.name)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase whitespace-nowrap ${selectedContinent === c.name ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
-              {c.name}
-            </button>
-          ))}
-        </div>
+        {/* Dashboard de Estatísticas */}
+        {!isAdding && !editingId && (
+          <section className="max-w-7xl mx-auto px-8 mt-8 w-full animate-in fade-in slide-in-from-top-4 duration-700">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              
+              <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-3 gap-6">
+                <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center">
+                  <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 mb-4">
+                    <i className="fa-solid fa-money-bill-1-wave text-xl"></i>
+                  </div>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Cédulas Totais</span>
+                  <span className="text-3xl font-black text-slate-900">{stats.total}</span>
+                </div>
+
+                <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center">
+                  <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 mb-4">
+                    <i className="fa-solid fa-flag text-xl"></i>
+                  </div>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Países Únicos</span>
+                  <span className="text-3xl font-black text-slate-900">{stats.countries}</span>
+                </div>
+
+                <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center">
+                  <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-600 mb-4">
+                    <i className="fa-solid fa-coins text-xl"></i>
+                  </div>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Valor do Acervo</span>
+                  <span className="text-xl font-black text-slate-900">
+                    {stats.value.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}
+                  </span>
+                </div>
+              </div>
+
+              <div className="lg:col-span-5 bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-8">
+                <div className="relative">
+                  {stats.total > 0 ? renderPieChart() : (
+                    <div className="w-48 h-48 rounded-full bg-slate-50 border-2 border-dashed border-slate-200 flex items-center justify-center text-slate-300">
+                      <i className="fa-solid fa-chart-pie text-4xl"></i>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex-1 space-y-3">
+                  <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Distribuição</h3>
+                  {stats.distribution.map(item => (
+                    <div 
+                      key={item.name} 
+                      className={`flex items-center gap-3 group cursor-pointer transition-all ${selectedContinent === item.name ? 'scale-105' : 'opacity-60 hover:opacity-100'}`}
+                      onClick={() => setSelectedContinent(item.name === selectedContinent ? null : item.name)}
+                    >
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
+                      <span className="text-[10px] font-black text-slate-700 uppercase flex-1">{item.name}</span>
+                      <span className="text-[10px] font-black text-slate-400">{item.percentage.toFixed(0)}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+          </section>
+        )}
 
         {/* Grid de Cédulas */}
         {!isAdding && !editingId && (
-          <div className="max-w-7xl mx-auto px-8 mt-8 w-full">
+          <div className="max-w-7xl mx-auto px-8 mt-12 w-full">
             <div className="flex items-center justify-between mb-8">
               <div>
                 <h2 className="text-3xl font-black text-slate-900 tracking-tighter">
@@ -239,41 +371,49 @@ const App: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
-              {filteredNotes.map(note => (
-                <div 
-                  key={note.id} 
-                  onClick={() => setViewGalleryNoteId(note.id)}
-                  className="bg-white rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all group overflow-hidden cursor-pointer"
-                >
-                  <div className="aspect-[1.5/1] bg-slate-50 relative">
-                    {note.images.front ? (
-                      <img src={note.images.front} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="flex items-center justify-center h-full text-slate-200"><i className="fa-solid fa-panorama text-4xl"></i></div>
-                    )}
-                    <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                      <button onClick={(e) => { e.stopPropagation(); setEditingId(note.id); setIsAdding(true); }} className="w-10 h-10 bg-white/90 backdrop-blur text-indigo-600 rounded-xl flex items-center justify-center shadow-lg hover:bg-indigo-600 hover:text-white transition-all"><i className="fa-solid fa-pen text-sm"></i></button>
-                      <button onClick={(e) => { e.stopPropagation(); handleDelete(note.id); }} className="w-10 h-10 bg-white/90 backdrop-blur text-rose-600 rounded-xl flex items-center justify-center shadow-lg hover:bg-rose-600 hover:text-white transition-all"><i className="fa-solid fa-trash text-sm"></i></button>
+            {filteredNotes.length === 0 ? (
+              <div className="w-full py-20 flex flex-col items-center justify-center bg-white rounded-[3rem] border border-dashed border-slate-200 text-slate-400">
+                <i className="fa-solid fa-folder-open text-6xl mb-6"></i>
+                <p className="font-bold">Nenhum registro encontrado.</p>
+                <button onClick={() => { setSearch(''); setSelectedContinent(null); }} className="mt-4 text-indigo-600 font-black text-xs uppercase tracking-widest hover:underline">Limpar Filtros</button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+                {filteredNotes.map(note => (
+                  <div 
+                    key={note.id} 
+                    onClick={() => setViewGalleryNoteId(note.id)}
+                    className="bg-white rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all group overflow-hidden cursor-pointer"
+                  >
+                    <div className="aspect-[1.5/1] bg-slate-50 relative">
+                      {note.images.front ? (
+                        <img src={note.images.front} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="flex items-center justify-center h-full text-slate-200"><i className="fa-solid fa-panorama text-4xl"></i></div>
+                      )}
+                      <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                        <button onClick={(e) => { e.stopPropagation(); setEditingId(note.id); setIsAdding(true); }} className="w-10 h-10 bg-white/90 backdrop-blur text-indigo-600 rounded-xl flex items-center justify-center shadow-lg hover:bg-indigo-600 hover:text-white transition-all"><i className="fa-solid fa-pen text-sm"></i></button>
+                        <button onClick={(e) => { e.stopPropagation(); handleDelete(note.id); }} className="w-10 h-10 bg-white/90 backdrop-blur text-rose-600 rounded-xl flex items-center justify-center shadow-lg hover:bg-rose-600 hover:text-white transition-all"><i className="fa-solid fa-trash text-sm"></i></button>
+                      </div>
+                      <div className="absolute top-4 left-4">
+                        <div className="px-3 py-1 bg-black/40 backdrop-blur-md rounded-full text-[9px] text-white font-black border border-white/20">{note.pickId || 'S/ID'}</div>
+                      </div>
                     </div>
-                    <div className="absolute top-4 left-4">
-                      <div className="px-3 py-1 bg-black/40 backdrop-blur-md rounded-full text-[9px] text-white font-black border border-white/20">{note.pickId || 'S/ID'}</div>
+                    <div className="p-6">
+                      <div className="flex items-center justify-between mb-2">
+                         <div className="text-[9px] text-indigo-500 font-black uppercase tracking-widest">{note.country}</div>
+                         <div className="text-[9px] text-slate-400 font-bold">{note.grade}</div>
+                      </div>
+                      <h3 className="text-xl font-black text-slate-900 mb-4 truncate">{note.denomination} {note.currency}</h3>
+                      <div className="flex justify-between items-center pt-4 border-t border-slate-50">
+                        <span className="text-[10px] font-bold text-slate-400">{note.issueDate}</span>
+                        <span className="text-sm font-black text-emerald-600">{(parseFloat(note.estimatedValue) || 0).toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}</span>
+                      </div>
                     </div>
                   </div>
-                  <div className="p-6">
-                    <div className="flex items-center justify-between mb-2">
-                       <div className="text-[9px] text-indigo-500 font-black uppercase tracking-widest">{note.country}</div>
-                       <div className="text-[9px] text-slate-400 font-bold">{note.grade}</div>
-                    </div>
-                    <h3 className="text-xl font-black text-slate-900 mb-4 truncate">{note.denomination} {note.currency}</h3>
-                    <div className="flex justify-between items-center pt-4 border-t border-slate-50">
-                      <span className="text-[10px] font-bold text-slate-400">{note.issueDate}</span>
-                      <span className="text-sm font-black text-emerald-600">{(parseFloat(note.estimatedValue) || 0).toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
